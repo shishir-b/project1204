@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>KenKen Puzzle</title>
+  <style>
+    :root {
+      --cell-size: 70px;
+      --primary: #1a237e;
+      --primary-light: #283593;
+      --error: #d32f2f;
+      --success: #2e7d32;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+      min-height: 100vh;
+      color: #222;
+      transition: background 0.5s;
+    }
+
+    body.party {
+      background: linear-gradient(135deg, #1a0011 0%, #2d0a1e 25%, #4a1942 50%, #1a0a2e 75%, #0d0015 100%);
+      background-attachment: fixed;
+      color: #eee;
+    }
+
+    body.party .container { color: #eee; }
+    body.party header h1 { color: #ffd6e8; }
+    body.party header .subtitle { color: #d4b8e8; }
+    body.party .control-group label { color: #ccc; }
+    body.party .control-group select { background: #2a1545; color: #eee; border-color: #5a3d7a; }
+    body.party .btn { background: #7b1fa2; }
+    body.party .btn:hover { background: #9c27b0; }
+    body.party #timer { color: #ffd6e8; }
+    body.party details { background: #2a1545; color: #d4b8e8; }
+    body.party details summary { color: #ffd6e8; }
+    body.party .check-section { background: #2a1545; color: #d4b8e8; }
+    body.party .check-section summary { color: #ffd6e8; }
+    body.party .mode-btn { background: #2a1545; color: #d4b8e8; border-color: #5a3d7a; }
+    body.party #numpad button { background: #2a1545; color: #eee; border-color: #5a3d7a; }
+    body.party #numpad button:hover { background: #3a2555; }
+
+    /* Theme toggle */
+    .theme-toggle {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 50;
+      padding: 8px 14px;
+      border: 2px solid #ccc;
+      border-radius: 20px;
+      background: white;
+      cursor: pointer;
+      font-size: 1.1em;
+      transition: all 0.3s;
+    }
+
+    body.party .theme-toggle {
+      background: #7b1fa2;
+      border-color: #9c27b0;
+    }
+
+    /* Balloons for party mode */
+    .party-balloons {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0;
+      overflow: hidden; display: none;
+    }
+
+    body.party .party-balloons { display: block; }
+
+    .pbloon {
+      position: absolute;
+      bottom: -150px;
+      width: var(--bw);
+      height: calc(var(--bw) * 1.2);
+      background: var(--bc);
+      border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+      animation: pFloat var(--bd) ease-in infinite;
+      animation-delay: var(--dd);
+      opacity: 0;
+    }
+
+    .pbloon::after {
+      content: '';
+      position: absolute; bottom: -60px; left: 50%;
+      width: 1px; height: 60px;
+      background: rgba(255,255,255,0.2);
+      transform: translateX(-50%);
+    }
+
+    @keyframes pFloat {
+      0% { transform: translateY(0); opacity: 0; }
+      8% { opacity: 0.7; }
+      100% { transform: translateY(-120vh); opacity: 0; }
+    }
+
+    .container {
+      max-width: 700px;
+      width: 100%;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    header h1 {
+      font-size: 2em;
+      color: var(--primary);
+      letter-spacing: 2px;
+    }
+
+    header .subtitle {
+      color: #888;
+      font-size: 0.85em;
+      margin-top: 2px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: flex-end;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .control-group label {
+      font-size: 0.75em;
+      color: #666;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .control-group select {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .btn {
+      padding: 8px 22px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    .btn:hover { background: var(--primary-light); }
+
+    .btn-pause {
+      padding: 8px 16px;
+      background: #ff8f00;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    .btn-pause:hover { background: #ff6f00; }
+    .btn-pause.paused { background: #43a047; }
+    .btn-pause.paused:hover { background: #2e7d32; }
+
+    #gridContainer.paused {
+      filter: blur(12px);
+      pointer-events: none;
+      transition: filter 0.25s;
+    }
+
+    .mode-bar.paused, #numpad.paused {
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .game-info {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 10px;
+      font-size: 1.05em;
+    }
+
+    #timer {
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      font-size: 1.3em;
+      color: #333;
+    }
+
+    #diffLabel {
+      font-size: 0.85em;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    #diffLabel.easy   { background: #e8f5e9; color: #2e7d32; }
+    #diffLabel.medium { background: #fff3e0; color: #e65100; }
+    #diffLabel.hard   { background: #fce4ec; color: #c62828; }
+
+    #gridContainer {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    table#grid {
+      border-collapse: collapse;
+      border: 3px solid #222;
+      user-select: none;
+      background: #fff;
+    }
+
+    td.cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      text-align: center;
+      vertical-align: middle;
+      cursor: pointer;
+      position: relative;
+      border: 1px solid #bbb;
+      transition: background-color 0.12s;
+      overflow: hidden;
+    }
+
+    td.cell.cage-border-top    { border-top:    3px solid #222; }
+    td.cell.cage-border-bottom { border-bottom: 3px solid #222; }
+    td.cell.cage-border-left   { border-left:   3px solid #222; }
+    td.cell.cage-border-right  { border-right:  3px solid #222; }
+
+    td.cell .cage-label {
+      position: absolute;
+      top: 1px;
+      left: 3px;
+      font-size: calc(var(--cell-size) * 0.18);
+      font-weight: 700;
+      color: #444;
+      pointer-events: none;
+      line-height: 1;
+      z-index: 2;
+    }
+
+    td.cell .cell-value {
+      font-size: calc(var(--cell-size) * 0.42);
+      font-weight: 500;
+      color: #222;
+      pointer-events: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Pencil marks container */
+    td.cell .pencil-marks {
+      position: absolute;
+      bottom: 1px;
+      left: 2px;
+      right: 2px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0px;
+      pointer-events: none;
+      z-index: 1;
+      line-height: 1;
+      justify-content: flex-start;
+    }
+
+    td.cell .pencil-mark {
+      font-size: calc(var(--cell-size) * 0.19);
+      font-weight: 700;
+      min-width: calc(var(--cell-size) * 0.17);
+      text-align: center;
+    }
+
+    td.cell .pencil-mark.green { color: #2e7d32; }
+    td.cell .pencil-mark.red   { color: #d32f2f; text-decoration: line-through; }
+
+    td.cell.selected {
+      box-shadow: inset 0 0 0 2px #1976d2;
+    }
+
+    td.cell.selected.mode-normal {
+      background-color: #fff176 !important;
+    }
+
+    td.cell.selected.mode-green {
+      background-color: #a5d6a7 !important;
+    }
+
+    td.cell.selected.mode-red {
+      background-color: #ffcc80 !important;
+    }
+
+    td.cell.highlighted {
+      background-color: rgba(200, 220, 255, 0.35) !important;
+    }
+
+    td.cell.error .cell-value {
+      color: var(--error);
+      font-weight: 700;
+    }
+
+    td.cell.cage-correct::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(76, 175, 80, 0.10);
+      pointer-events: none;
+    }
+
+    td.cell.reveal-correct {
+      background-color: rgba(46, 125, 50, 0.30) !important;
+    }
+
+    td.cell.reveal-correct .cell-value {
+      color: #1b5e20 !important;
+      font-weight: 700;
+    }
+
+    td.cell.reveal-wrong {
+      background-color: rgba(211, 47, 47, 0.30) !important;
+    }
+
+    td.cell.reveal-wrong .cell-value {
+      color: #b71c1c !important;
+      font-weight: 700;
+    }
+
+    /* Mode selector */
+    .mode-bar {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .mode-btn {
+      padding: 6px 16px;
+      border: 2px solid #ccc;
+      border-radius: 20px;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s;
+      color: #555;
+    }
+
+    .mode-btn:hover { border-color: #999; }
+
+    .mode-btn.active-normal {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .mode-btn.active-green {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-color: #2e7d32;
+    }
+
+    .mode-btn.active-red {
+      background: #fce4ec;
+      color: #c62828;
+      border-color: #c62828;
+    }
+
+    #numpad {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    #numpad button {
+      width: 44px;
+      height: 44px;
+      font-size: 1.15em;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.1s;
+      color: #333;
+    }
+
+    #numpad button:hover { background: #e3f2fd; }
+    #numpad button:active { background: #bbdefb; }
+    #numpad button.action { color: #666; font-size: 1.3em; }
+
+    /* Win overlay */
+    #winOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      animation: fadeIn 0.3s;
+    }
+
+    #winOverlay.hidden { display: none; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .win-content {
+      background: white;
+      padding: 44px 48px;
+      border-radius: 18px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: popIn 0.35s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .win-content h2 {
+      color: var(--success);
+      margin-bottom: 10px;
+      font-size: 1.8em;
+    }
+
+    .win-content p {
+      margin-bottom: 22px;
+      color: #555;
+      font-size: 1.05em;
+    }
+
+    .win-content .btn {
+      background: var(--success);
+      padding: 10px 30px;
+      font-size: 1em;
+    }
+
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      font-size: 1.2em;
+      color: #555;
+      font-weight: 600;
+    }
+
+    #loadingOverlay.hidden { display: none; }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 4px solid #ddd;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 14px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    details {
+      background: white;
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .help {
+      margin-top: 10px;
+      color: #555;
+      line-height: 1.7;
+      font-size: 0.92em;
+    }
+
+    .help p { margin-bottom: 5px; }
+
+    .help ul {
+      margin: 6px 0 6px 18px;
+    }
+
+    .help kbd {
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 0.9em;
+    }
+
+    /* Check progress */
+    .check-section {
+      background: white;
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 10px;
+    }
+
+    .check-section summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .check-inner {
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .check-btn {
+      padding: 8px 22px;
+      background: #546e7a;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    .check-btn:hover { background: #455a64; }
+
+    #checkResult {
+      margin-top: 10px;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.95em;
+      display: none;
+    }
+
+    #checkResult.correct {
+      display: block;
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    #checkResult.wrong {
+      display: block;
+      background: #fce4ec;
+      color: #c62828;
+    }
+
+    #checkResult.empty {
+      display: block;
+      background: #fff3e0;
+      color: #e65100;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 8px; }
+      header h1 { font-size: 1.5em; }
+      .controls { gap: 6px; }
+      #numpad button { width: 38px; height: 38px; font-size: 1em; }
+      .mode-btn { padding: 5px 10px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body class="party">
+<button class="theme-toggle" id="themeToggle" title="Toggle party mode">&#127880;</button>
+<div class="party-balloons" id="partyBalloons"></div>
+<div class="container">
+  <header>
+    <h1>KenKen</h1>
+    <p class="subtitle">Math Puzzle Game</p>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="size">Grid</label>
+      <select id="size">
+        <option value="3">3 &times; 3</option>
+        <option value="4">4 &times; 4</option>
+        <option value="5">5 &times; 5</option>
+        <option value="6">6 &times; 6</option>
+        <option value="7">7 &times; 7</option>
+        <option value="8">8 &times; 8</option>
+        <option value="9" selected>9 &times; 9</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+    <button class="btn" id="newGameBtn">New Game</button>
+    <button class="btn" id="restartBtn" style="background:#546e7a">Restart</button>
+    <button class="btn" id="hintBtn" style="background:#7b1fa2">&#128161; Hint</button>
+    <button class="btn" id="revealBtn" style="background:#0277bd">&#128065; Reveal</button>
+  </div>
+
+  <div class="game-info">
+    <span id="timer">00:00</span>
+    <button class="btn-pause" id="pauseBtn" title="Pause / Resume">&#10074;&#10074; Pause</button>
+    <span id="diffLabel" class="medium"></span>
+  </div>
+
+  <div id="gridContainer">
+    <table id="grid"></table>
+  </div>
+
+  <div class="mode-bar">
+    <button class="mode-btn active-normal" id="modeNormal" title="Enter answers (or press N)">&#9998; Normal</button>
+    <button class="mode-btn" id="modeGreen" title="Mark possible values (or press G)">&#10003; Possible</button>
+    <button class="mode-btn" id="modeRed" title="Mark eliminated values (or press R)">&#10007; Eliminate</button>
+  </div>
+
+  <div id="numpad"></div>
+
+  <div id="winOverlay" class="hidden">
+    <div class="win-content">
+      <h2>Congratulations!</h2>
+      <p>Solved in <span id="winTime"></span></p>
+      <button class="btn" onclick="newGame()">Play Again</button>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="hidden">
+    <div class="spinner"></div>
+    <span>Generating puzzle&hellip;</span>
+  </div>
+
+  <details class="check-section">
+    <summary>Check Progress</summary>
+    <div class="check-inner">
+      <button class="check-btn" id="checkBtn">Am I correct so far?</button>
+      <div id="checkResult"></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>How to Play</summary>
+    <div class="help">
+      <p><strong>Goal:</strong> Fill the grid so each row and column contains the numbers 1 to N exactly once.</p>
+      <p><strong>Cages:</strong> Groups of cells outlined in bold have a target number and math operation. The numbers you place must produce the target using that operation.</p>
+      <ul>
+        <li><strong>+</strong> &mdash; numbers add up to the target</li>
+        <li><strong>&minus;</strong> &mdash; difference of two numbers equals the target</li>
+        <li><strong>&times;</strong> &mdash; product of numbers equals the target</li>
+        <li><strong>&divide;</strong> &mdash; quotient of two numbers equals the target</li>
+      </ul>
+      <p><strong>Modes:</strong></p>
+      <ul>
+        <li><strong>Normal (<kbd>N</kbd>)</strong> &mdash; enter your answer into the cell</li>
+        <li><strong>Possible (<kbd>G</kbd>)</strong> &mdash; mark numbers in <span style="color:#2e7d32;font-weight:700">green</span> you think could go here</li>
+        <li><strong>Eliminate (<kbd>R</kbd>)</strong> &mdash; mark numbers in <span style="color:#c62828;font-weight:700">red</span> that can't go here</li>
+      </ul>
+      <p>Notes appear at the bottom of the cell. When you enter a final answer, notes are automatically cleared.</p>
+      <p><strong>Multi-select:</strong> In Possible/Eliminate mode, click multiple cells to select them all, then type a number to apply the note to every selected cell at once. Click a selected cell again to deselect it.</p>
+      <p><strong>Controls:</strong> Click a cell, then type a number or use the buttons below. <kbd>Backspace</kbd>/<kbd>Delete</kbd> clears. Arrow keys navigate. <kbd>Ctrl+Z</kbd> to undo.</p>
+      <p><strong>Difficulty:</strong> Rated by a solver &mdash; Easy puzzles need only basic elimination, Medium requires scanning techniques, Hard may need advanced logic.</p>
+    </div>
+  </details>
+</div>
+
+<script>
+// ======================== STATE ========================
+const state = {
+  size: 9,
+  difficulty: 'medium',
+  solution: [],
+  cages: [],
+  cageMap: [],
+  grid: [],           // 0 = empty, 1-N = value
+  greenNotes: [],      // greenNotes[r][c] = Set of numbers
+  redNotes: [],        // redNotes[r][c] = Set of numbers
+  selectedCells: [],   // array of [r,c] — single in normal, multi in green/red
+  inputMode: 'normal', // 'normal' | 'green' | 'red'
+  isPaused: false,
+  timer: 0,
+  timerInterval: null,
+  moveHistory: [],     // { type, r, c, prev, prevGreen?, prevRed? }
+  redoHistory: [],
+  isComplete: false,
+};
+
+// ======================== UTILITIES ========================
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function randInt(min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+// ======================== LATIN SQUARE ========================
+function generateLatinSquare(n) {
+  const grid = [];
+  for (let i = 0; i < n; i++) {
+    const row = [];
+    for (let j = 0; j < n; j++) row.push((i + j) % n + 1);
+    grid.push(row);
+  }
+  for (let i = n - 1; i > 0; i--) {
+    const j = randInt(0, i);
+    [grid[i], grid[j]] = [grid[j], grid[i]];
+  }
+  for (let i = n - 1; i > 0; i--) {
+    const j = randInt(0, i);
+    for (let r = 0; r < n; r++) [grid[r][i], grid[r][j]] = [grid[r][j], grid[r][i]];
+  }
+  const perm = shuffle(Array.from({ length: n }, (_, i) => i + 1));
+  for (let r = 0; r < n; r++)
+    for (let c = 0; c < n; c++)
+      grid[r][c] = perm[grid[r][c] - 1];
+  return grid;
+}
+
+// ======================== CAGE GENERATION ========================
+// Cage shape generation — ops/sizes are controlled by difficulty params but
+// difficulty *rating* is done by the solver after generation.
+const CAGE_PARAMS = {
+  easy:   { maxCageSize: 2, singleCellProb: 0.28, ops: ['+', '-'] },
+  medium: { maxCageSize: 3, singleCellProb: 0.08, ops: ['+', '-', '×', '÷'] },
+  hard:   { maxCageSize: 5, singleCellProb: 0.02, ops: ['+', '-', '×', '÷'] },
+};
+
+function generateCages(size, solution, params) {
+  const { maxCageSize, singleCellProb, ops } = params;
+  const visited = Array.from({ length: size }, () => Array(size).fill(false));
+  const cages = [];
+
+  const cells = [];
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++) cells.push([r, c]);
+  shuffle(cells);
+
+  for (const [r, c] of cells) {
+    if (visited[r][c]) continue;
+
+    if (Math.random() < singleCellProb) {
+      visited[r][c] = true;
+      cages.push({ cells: [[r, c]] });
+      continue;
+    }
+
+    const cage = [[r, c]];
+    visited[r][c] = true;
+    const targetSize = randInt(2, maxCageSize);
+
+    while (cage.length < targetSize) {
+      const nbrs = [];
+      for (const [cr, cc] of cage) {
+        for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+          const nr = cr + dr, nc = cc + dc;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size && !visited[nr][nc]) {
+            if (!nbrs.some(([a, b]) => a === nr && b === nc)) nbrs.push([nr, nc]);
+          }
+        }
+      }
+      if (nbrs.length === 0) break;
+      const [nr, nc] = nbrs[Math.floor(Math.random() * nbrs.length)];
+      cage.push([nr, nc]);
+      visited[nr][nc] = true;
+    }
+
+    cages.push({ cells: cage });
+  }
+
+  // Assign operations and targets
+  for (const cage of cages) {
+    const values = cage.cells.map(([r, c]) => solution[r][c]);
+    if (values.length === 1) {
+      cage.op = '';
+      cage.target = values[0];
+    } else if (values.length === 2) {
+      const [a, b] = values;
+      const mx = Math.max(a, b), mn = Math.min(a, b);
+      const candidates = [];
+      if (ops.includes('+')) candidates.push({ op: '+', target: a + b });
+      if (ops.includes('-')) candidates.push({ op: '-', target: mx - mn });
+      if (ops.includes('×')) candidates.push({ op: '×', target: a * b });
+      if (ops.includes('÷') && mn !== 0 && mx % mn === 0) candidates.push({ op: '÷', target: mx / mn });
+      if (candidates.length === 0) candidates.push({ op: '+', target: a + b });
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      cage.op = pick.op;
+      cage.target = pick.target;
+    } else {
+      const candidates = [];
+      if (ops.includes('+')) candidates.push({ op: '+', target: values.reduce((a, b) => a + b, 0) });
+      if (ops.includes('×')) candidates.push({ op: '×', target: values.reduce((a, b) => a * b, 1) });
+      if (candidates.length === 0) candidates.push({ op: '+', target: values.reduce((a, b) => a + b, 0) });
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      cage.op = pick.op;
+      cage.target = pick.target;
+    }
+
+    cage.labelCell = cage.cells.reduce((best, cell) =>
+      (cell[0] < best[0] || (cell[0] === best[0] && cell[1] < best[1])) ? cell : best,
+      cage.cells[0]
+    );
+  }
+
+  return cages;
+}
+
+// ======================== SOLVER & DIFFICULTY RATING ========================
+// Uses constraint propagation to solve and measure difficulty:
+//   Level 0: naked singles only (easy)
+//   Level 1: hidden singles needed (medium)
+//   Level 2: backtracking/guessing needed (hard)
+
+function rateDifficulty(size, cages) {
+  // Build cage map
+  const cageOf = Array.from({ length: size }, () => Array(size).fill(-1));
+  cages.forEach((cage, i) => cage.cells.forEach(([r, c]) => cageOf[r][c] = i));
+
+  // candidates[r][c] = Set(1..size)
+  const candidates = Array.from({ length: size }, () =>
+    Array.from({ length: size }, () => new Set(Array.from({ length: size }, (_, i) => i + 1)))
+  );
+
+  // For single-cell cages, fix the value immediately
+  for (const cage of cages) {
+    if (cage.cells.length === 1 && cage.op === '') {
+      const [r, c] = cage.cells[0];
+      candidates[r][c] = new Set([cage.target]);
+    }
+  }
+
+  // Generate valid value combos for each cage
+  function getCageCombos(cage, n) {
+    const { cells, op, target } = cage;
+    const k = cells.length;
+    if (k === 1) return [[target]];
+
+    function perms(arr) {
+      if (arr.length <= 1) return [arr];
+      const result = [];
+      for (let i = 0; i < arr.length; i++) {
+        const rest = arr.slice(0, i).concat(arr.slice(i + 1));
+        for (const p of perms(rest)) result.push([arr[i], ...p]);
+      }
+      return result;
+    }
+
+    function combos(len, start) {
+      if (len === 0) return [[]];
+      const result = [];
+      for (let v = start; v <= n; v++) {
+        for (const rest of combos(len - 1, 1)) result.push([v, ...rest]);
+      }
+      return result;
+    }
+
+    const valid = [];
+    // For 2-cell cages with - or ÷, only consider permutations of pairs
+    if (k === 2) {
+      for (let a = 1; a <= n; a++) {
+        for (let b = 1; b <= n; b++) {
+          if (op === '+' && a + b === target) valid.push([a, b]);
+          if (op === '-' && Math.abs(a - b) === target) valid.push([a, b]);
+          if (op === '×' && a * b === target) valid.push([a, b]);
+          if (op === '÷') {
+            const mx = Math.max(a, b), mn = Math.min(a, b);
+            if (mn !== 0 && mx / mn === target && mx === Math.max(a, b)) valid.push([a, b]);
+          }
+        }
+      }
+    } else {
+      // For larger cages, brute force combos with repetition allowed
+      for (const combo of combos(k, 1)) {
+        if (op === '+' && combo.reduce((a, b) => a + b, 0) === target) {
+          for (const p of perms(combo)) valid.push(p);
+        }
+        if (op === '×' && combo.reduce((a, b) => a * b, 1) === target) {
+          for (const p of perms(combo)) valid.push(p);
+        }
+      }
+    }
+
+    // Deduplicate
+    const seen = new Set();
+    return valid.filter(v => {
+      const key = v.join(',');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  const cageCombos = cages.map(cage => getCageCombos(cage, size));
+
+  let usedHiddenSingles = false;
+
+  function clone(cands) {
+    return cands.map(row => row.map(s => new Set(s)));
+  }
+
+  // Propagate constraints — returns false if contradiction
+  function propagate(cands) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+
+      // 1) Naked singles: if a cell has only 1 candidate, remove from row/col peers
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (cands[r][c].size === 1) {
+            const val = [...cands[r][c]][0];
+            for (let i = 0; i < size; i++) {
+              if (i !== c && cands[r][i].has(val)) { cands[r][i].delete(val); changed = true; if (cands[r][i].size === 0) return false; }
+              if (i !== r && cands[i][c].has(val)) { cands[i][c].delete(val); changed = true; if (cands[i][c].size === 0) return false; }
+            }
+          }
+        }
+      }
+
+      // 2) Cage constraint: filter candidates by valid cage combos
+      for (let ci = 0; ci < cages.length; ci++) {
+        const cage = cages[ci];
+        const combos = cageCombos[ci];
+        const cells = cage.cells;
+
+        // Filter combos to those consistent with current candidates
+        const validCombos = combos.filter(combo =>
+          combo.every((v, i) => cands[cells[i][0]][cells[i][1]].has(v))
+        );
+
+        if (validCombos.length === 0) return false;
+
+        // Union of valid values per cell position
+        for (let i = 0; i < cells.length; i++) {
+          const [r, c] = cells[i];
+          const validVals = new Set(validCombos.map(combo => combo[i]));
+          for (const v of [...cands[r][c]]) {
+            if (!validVals.has(v)) {
+              cands[r][c].delete(v);
+              changed = true;
+              if (cands[r][c].size === 0) return false;
+            }
+          }
+        }
+      }
+
+      // 3) Hidden singles: if a value appears in only one cell in a row/col, fix it
+      for (let r = 0; r < size; r++) {
+        for (let v = 1; v <= size; v++) {
+          const cols = [];
+          for (let c = 0; c < size; c++) if (cands[r][c].has(v)) cols.push(c);
+          if (cols.length === 0) return false;
+          if (cols.length === 1 && cands[r][cols[0]].size > 1) {
+            cands[r][cols[0]] = new Set([v]);
+            changed = true;
+            usedHiddenSingles = true;
+          }
+        }
+      }
+      for (let c = 0; c < size; c++) {
+        for (let v = 1; v <= size; v++) {
+          const rows = [];
+          for (let r = 0; r < size; r++) if (cands[r][c].has(v)) rows.push(r);
+          if (rows.length === 0) return false;
+          if (rows.length === 1 && cands[rows[0]][c].size > 1) {
+            cands[rows[0]][c] = new Set([v]);
+            changed = true;
+            usedHiddenSingles = true;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  function isSolved(cands) {
+    return cands.every(row => row.every(s => s.size === 1));
+  }
+
+  // Try to solve without backtracking
+  const cands = clone(candidates);
+  const ok = propagate(cands);
+
+  if (ok && isSolved(cands)) {
+    return usedHiddenSingles ? 'medium' : 'easy';
+  }
+
+  // If not solved, needs backtracking → hard
+  // (We don't actually need to finish solving; needing guessing = hard)
+  return 'hard';
+}
+
+// ======================== PUZZLE GENERATION WITH DIFFICULTY MATCHING ========================
+function generatePuzzleWithDifficulty(size, requestedDiff) {
+  const params = CAGE_PARAMS[requestedDiff];
+  let attempts = 0;
+  const maxAttempts = 40;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    const solution = generateLatinSquare(size);
+    const cages = generateCages(size, solution, params);
+    const rated = rateDifficulty(size, cages);
+
+    if (rated === requestedDiff) {
+      return { solution, cages, rated };
+    }
+
+    // For easy: accept easy puzzles only
+    // For medium: accept medium
+    // For hard: accept hard (most cages with backtracking will land here)
+    // After many attempts, relax — accept any puzzle but label it accurately
+    if (attempts >= maxAttempts - 5) {
+      return { solution, cages, rated };
+    }
+  }
+
+  // Fallback
+  const solution = generateLatinSquare(size);
+  const cages = generateCages(size, solution, params);
+  const rated = rateDifficulty(size, cages);
+  return { solution, cages, rated };
+}
+
+// ======================== CAGE COLORS ========================
+function generateCageColors(count) {
+  const colors = [];
+  for (let i = 0; i < count; i++) {
+    const hue = (i * 137.508) % 360;
+    colors.push(`hsl(${hue}, 40%, 93%)`);
+  }
+  return colors;
+}
+
+// ======================== VALIDATION ========================
+function isCageSatisfied(values, op, target) {
+  if (op === '') return values[0] === target;
+  if (op === '+') return values.reduce((a, b) => a + b, 0) === target;
+  if (op === '×') return values.reduce((a, b) => a * b, 1) === target;
+  if (op === '-') return Math.abs(values[0] - values[1]) === target;
+  if (op === '÷') {
+    const mx = Math.max(...values), mn = Math.min(...values);
+    return mn !== 0 && mx / mn === target;
+  }
+  return false;
+}
+
+function getErrors() {
+  const errors = new Set();
+  const { grid, cages, size } = state;
+
+  for (let r = 0; r < size; r++) {
+    const pos = {};
+    for (let c = 0; c < size; c++) {
+      const v = grid[r][c];
+      if (v === 0) continue;
+      if (!pos[v]) pos[v] = [];
+      pos[v].push(c);
+    }
+    for (const v in pos) {
+      if (pos[v].length > 1) pos[v].forEach(c => errors.add(`${r},${c}`));
+    }
+  }
+
+  for (let c = 0; c < size; c++) {
+    const pos = {};
+    for (let r = 0; r < size; r++) {
+      const v = grid[r][c];
+      if (v === 0) continue;
+      if (!pos[v]) pos[v] = [];
+      pos[v].push(r);
+    }
+    for (const v in pos) {
+      if (pos[v].length > 1) pos[v].forEach(r => errors.add(`${r},${c}`));
+    }
+  }
+
+  for (const cage of cages) {
+    const values = cage.cells.map(([r, c]) => grid[r][c]);
+    if (values.some(v => v === 0)) continue;
+    if (!isCageSatisfied(values, cage.op, cage.target)) {
+      cage.cells.forEach(([r, c]) => errors.add(`${r},${c}`));
+    }
+  }
+
+  return errors;
+}
+
+function getCageStatuses() {
+  const statuses = new Map();
+  state.cages.forEach((cage, i) => {
+    const values = cage.cells.map(([r, c]) => state.grid[r][c]);
+    if (values.some(v => v === 0)) statuses.set(i, 'incomplete');
+    else if (isCageSatisfied(values, cage.op, cage.target)) statuses.set(i, 'correct');
+    else statuses.set(i, 'error');
+  });
+  return statuses;
+}
+
+function checkWin() {
+  const { grid, size } = state;
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++)
+      if (grid[r][c] === 0) return false;
+  return getErrors().size === 0;
+}
+
+// ======================== RENDERING ========================
+function getCellSize() {
+  const maxW = Math.min(630, window.innerWidth - 28);
+  return Math.min(Math.floor(maxW / state.size), 72);
+}
+
+function getCell(r, c) {
+  return document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+}
+
+function renderGrid() {
+  const table = document.getElementById('grid');
+  table.innerHTML = '';
+
+  const cellSize = getCellSize();
+  document.documentElement.style.setProperty('--cell-size', cellSize + 'px');
+
+  state.cageMap = Array.from({ length: state.size }, () => Array(state.size).fill(-1));
+  state.cages.forEach((cage, i) => {
+    cage.cells.forEach(([r, c]) => { state.cageMap[r][c] = i; });
+  });
+
+  const colors = generateCageColors(state.cages.length);
+
+  for (let r = 0; r < state.size; r++) {
+    const tr = document.createElement('tr');
+    for (let c = 0; c < state.size; c++) {
+      const td = document.createElement('td');
+      td.className = 'cell';
+      td.dataset.row = r;
+      td.dataset.col = c;
+
+      const cid = state.cageMap[r][c];
+      td.style.backgroundColor = colors[cid];
+
+      if (r === 0 || state.cageMap[r - 1][c] !== cid) td.classList.add('cage-border-top');
+      if (r === state.size - 1 || state.cageMap[r + 1][c] !== cid) td.classList.add('cage-border-bottom');
+      if (c === 0 || state.cageMap[r][c - 1] !== cid) td.classList.add('cage-border-left');
+      if (c === state.size - 1 || state.cageMap[r][c + 1] !== cid) td.classList.add('cage-border-right');
+
+      const cage = state.cages[cid];
+      if (r === cage.labelCell[0] && c === cage.labelCell[1]) {
+        const lbl = document.createElement('span');
+        lbl.className = 'cage-label';
+        lbl.textContent = cage.op ? cage.target + cage.op : cage.target;
+        td.appendChild(lbl);
+      }
+
+      // Cell value
+      const val = document.createElement('span');
+      val.className = 'cell-value';
+      val.textContent = state.grid[r][c] || '';
+      td.appendChild(val);
+
+      // Pencil marks container
+      const pm = document.createElement('div');
+      pm.className = 'pencil-marks';
+      td.appendChild(pm);
+
+      td.addEventListener('click', () => selectCell(r, c));
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+
+  renderAllPencilMarks();
+  renderNumpad();
+}
+
+function renderPencilMarks(r, c) {
+  const cell = getCell(r, c);
+  if (!cell) return;
+  const pm = cell.querySelector('.pencil-marks');
+  pm.innerHTML = '';
+
+  // Don't show notes if there's a main value
+  if (state.grid[r][c] !== 0) return;
+
+  const green = state.greenNotes[r][c];
+  const red = state.redNotes[r][c];
+
+  // Show green first, then red, sorted
+  const sorted = [...green].sort((a, b) => a - b);
+  for (const v of sorted) {
+    const span = document.createElement('span');
+    span.className = 'pencil-mark green';
+    span.textContent = v;
+    pm.appendChild(span);
+  }
+  const sortedRed = [...red].sort((a, b) => a - b);
+  for (const v of sortedRed) {
+    if (green.has(v)) continue; // don't duplicate
+    const span = document.createElement('span');
+    span.className = 'pencil-mark red';
+    span.textContent = v;
+    pm.appendChild(span);
+  }
+}
+
+function renderAllPencilMarks() {
+  for (let r = 0; r < state.size; r++)
+    for (let c = 0; c < state.size; c++)
+      renderPencilMarks(r, c);
+}
+
+function renderNumpad() {
+  const pad = document.getElementById('numpad');
+  pad.innerHTML = '';
+  for (let i = 1; i <= state.size; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.addEventListener('click', () => handleInput(i));
+    pad.appendChild(btn);
+  }
+  const clr = document.createElement('button');
+  clr.className = 'action';
+  clr.innerHTML = '&times;';
+  clr.title = 'Clear cell (value + notes)';
+  clr.addEventListener('click', eraseSelected);
+  pad.appendChild(clr);
+
+  const addAll = document.createElement('button');
+  addAll.className = 'action';
+  addAll.textContent = 'All';
+  addAll.style.fontSize = '0.85em';
+  addAll.title = 'Add all numbers as possible';
+  addAll.addEventListener('click', addAllPossible);
+  pad.appendChild(addAll);
+
+  const undo = document.createElement('button');
+  undo.className = 'action';
+  undo.textContent = '↩';
+  undo.title = 'Undo (Ctrl+Z)';
+  undo.addEventListener('click', doUndo);
+  pad.appendChild(undo);
+
+  const redo = document.createElement('button');
+  redo.className = 'action';
+  redo.textContent = '↪';
+  redo.title = 'Redo (Ctrl+Y)';
+  redo.addEventListener('click', doRedo);
+  pad.appendChild(redo);
+}
+
+// ======================== MODE SWITCHING ========================
+function setInputMode(mode) {
+  // Always clear selection when any mode button is clicked
+  clearSelection();
+
+  // Toggle: if already in green/red and clicking same mode, go back to normal
+  if (mode === state.inputMode && (mode === 'green' || mode === 'red')) {
+    mode = 'normal';
+  }
+
+  state.inputMode = mode;
+  document.getElementById('modeNormal').className = 'mode-btn' + (mode === 'normal' ? ' active-normal' : '');
+  document.getElementById('modeGreen').className  = 'mode-btn' + (mode === 'green'  ? ' active-green'  : '');
+  document.getElementById('modeRed').className    = 'mode-btn' + (mode === 'red'    ? ' active-red'    : '');
+}
+
+// ======================== CELL SELECTION ========================
+function selectCell(r, c) {
+  if (state.inputMode === 'normal') {
+    // Single select in normal mode
+    clearSelection();
+    state.selectedCells = [[r, c]];
+  } else {
+    // Multi-select: toggle cell in/out of selection
+    const idx = state.selectedCells.findIndex(([sr, sc]) => sr === r && sc === c);
+    if (idx !== -1) {
+      state.selectedCells.splice(idx, 1);
+    } else {
+      state.selectedCells.push([r, c]);
+    }
+  }
+  refreshSelectionDisplay();
+}
+
+function refreshSelectionDisplay() {
+  // Clear all selection visuals
+  document.querySelectorAll('.cell.selected, .cell.highlighted').forEach(el => {
+    el.classList.remove('selected', 'highlighted', 'mode-normal', 'mode-green', 'mode-red');
+  });
+
+  // Determine mode class
+  const modeClass = 'mode-' + state.inputMode;
+
+  // Apply selection visuals
+  for (const [r, c] of state.selectedCells) {
+    const cell = getCell(r, c);
+    if (cell) {
+      cell.classList.add('selected', modeClass);
+    }
+  }
+
+  // Row/col highlight only in single-select normal mode
+  if (state.selectedCells.length === 1) {
+    const [r, c] = state.selectedCells[0];
+    for (let i = 0; i < state.size; i++) {
+      if (i !== c) { const el = getCell(r, i); if (el && !el.classList.contains('selected')) el.classList.add('highlighted'); }
+      if (i !== r) { const el = getCell(i, c); if (el && !el.classList.contains('selected')) el.classList.add('highlighted'); }
+    }
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.cell.selected, .cell.highlighted').forEach(el => {
+    el.classList.remove('selected', 'highlighted', 'mode-normal', 'mode-green', 'mode-red');
+  });
+  state.selectedCells = [];
+}
+
+// ======================== INPUT ========================
+function handleInput(num) {
+  if (state.selectedCells.length === 0 || state.isComplete) return;
+
+  if (state.inputMode === 'normal') {
+    // In normal mode, enter value in all selected cells
+    for (const [r, c] of state.selectedCells) {
+      enterNumber(r, c, num);
+    }
+  } else {
+    // Green or Red mode: apply to ALL selected cells
+    const color = state.inputMode;
+    for (const [r, c] of state.selectedCells) {
+      toggleNote(r, c, num, color);
+    }
+  }
+}
+
+function enterNumber(r, c, num) {
+  const prev = state.grid[r][c];
+  const prevGreen = new Set(state.greenNotes[r][c]);
+  const prevRed = new Set(state.redNotes[r][c]);
+
+  if (prev === num && prevGreen.size === 0 && prevRed.size === 0) return;
+
+  state.moveHistory.push({ type: 'value', r, c, prev, prevGreen, prevRed });
+  state.redoHistory = [];
+  state.grid[r][c] = num;
+
+  // Clear pencil marks when entering a main value
+  if (num !== 0) {
+    state.greenNotes[r][c] = new Set();
+    state.redNotes[r][c] = new Set();
+  }
+
+  const cell = getCell(r, c);
+  if (cell) cell.querySelector('.cell-value').textContent = num || '';
+
+  renderPencilMarks(r, c);
+  updateErrors();
+
+  if (num !== 0 && checkWin()) handleWin();
+}
+
+function toggleNote(r, c, num, color) {
+  if (num === 0) {
+    // Clear all notes of this color
+    const prevSet = new Set(color === 'green' ? state.greenNotes[r][c] : state.redNotes[r][c]);
+    if (prevSet.size === 0) return;
+    state.moveHistory.push({ type: 'note-clear', r, c, color, prevSet });
+    state.redoHistory = [];
+    if (color === 'green') state.greenNotes[r][c] = new Set();
+    else state.redNotes[r][c] = new Set();
+    renderPencilMarks(r, c);
+    return;
+  }
+
+  // Don't add notes if cell has a main value
+  if (state.grid[r][c] !== 0) return;
+
+  const noteSet = color === 'green' ? state.greenNotes[r][c] : state.redNotes[r][c];
+  const otherSet = color === 'green' ? state.redNotes[r][c] : state.greenNotes[r][c];
+  const had = noteSet.has(num);
+
+  state.moveHistory.push({ type: 'note-toggle', r, c, color, num, had, hadOther: otherSet.has(num) });
+  state.redoHistory = [];
+
+  if (had) {
+    noteSet.delete(num);
+  } else {
+    noteSet.add(num);
+    // Remove from the other set if present (can't be both possible and eliminated)
+    otherSet.delete(num);
+  }
+
+  renderPencilMarks(r, c);
+}
+
+function doUndo() {
+  if (state.moveHistory.length === 0 || state.isComplete) return;
+  const move = state.moveHistory.pop();
+
+  // Save current state for redo before reverting
+  if (move.type === 'value') {
+    const redoMove = { type: 'value', r: move.r, c: move.c, val: state.grid[move.r][move.c],
+      green: new Set(state.greenNotes[move.r][move.c]), red: new Set(state.redNotes[move.r][move.c]) };
+    state.redoHistory.push({ undo: move, redo: redoMove });
+
+    state.grid[move.r][move.c] = move.prev;
+    state.greenNotes[move.r][move.c] = new Set(move.prevGreen);
+    state.redNotes[move.r][move.c] = new Set(move.prevRed);
+    const cell = getCell(move.r, move.c);
+    if (cell) cell.querySelector('.cell-value').textContent = move.prev || '';
+    renderPencilMarks(move.r, move.c);
+    updateErrors();
+  } else if (move.type === 'note-toggle') {
+    state.redoHistory.push({ undo: move });
+    const noteSet = move.color === 'green' ? state.greenNotes[move.r][move.c] : state.redNotes[move.r][move.c];
+    const otherSet = move.color === 'green' ? state.redNotes[move.r][move.c] : state.greenNotes[move.r][move.c];
+    if (move.had) noteSet.add(move.num);
+    else noteSet.delete(move.num);
+    if (move.hadOther) otherSet.add(move.num);
+    renderPencilMarks(move.r, move.c);
+  } else if (move.type === 'note-clear') {
+    state.redoHistory.push({ undo: move });
+    if (move.color === 'green') state.greenNotes[move.r][move.c] = new Set(move.prevSet);
+    else state.redNotes[move.r][move.c] = new Set(move.prevSet);
+    renderPencilMarks(move.r, move.c);
+  }
+}
+
+function doRedo() {
+  if (state.redoHistory.length === 0 || state.isComplete) return;
+  const entry = state.redoHistory.pop();
+  const move = entry.undo;
+
+  if (move.type === 'value') {
+    const redo = entry.redo;
+    state.moveHistory.push(move);
+    state.grid[redo.r][redo.c] = redo.val;
+    state.greenNotes[redo.r][redo.c] = new Set(redo.green);
+    state.redNotes[redo.r][redo.c] = new Set(redo.red);
+    const cell = getCell(redo.r, redo.c);
+    if (cell) cell.querySelector('.cell-value').textContent = redo.val || '';
+    renderPencilMarks(redo.r, redo.c);
+    updateErrors();
+    if (redo.val !== 0 && checkWin()) handleWin();
+  } else if (move.type === 'note-toggle') {
+    state.moveHistory.push(move);
+    const noteSet = move.color === 'green' ? state.greenNotes[move.r][move.c] : state.redNotes[move.r][move.c];
+    const otherSet = move.color === 'green' ? state.redNotes[move.r][move.c] : state.greenNotes[move.r][move.c];
+    // Re-apply the toggle (opposite of undo)
+    if (move.had) noteSet.delete(move.num);
+    else noteSet.add(move.num);
+    if (move.hadOther) otherSet.delete(move.num);
+    renderPencilMarks(move.r, move.c);
+  } else if (move.type === 'note-clear') {
+    state.moveHistory.push(move);
+    if (move.color === 'green') state.greenNotes[move.r][move.c] = new Set();
+    else state.redNotes[move.r][move.c] = new Set();
+    renderPencilMarks(move.r, move.c);
+  }
+}
+
+function handleKeydown(e) {
+  if (state.isComplete) return;
+  if (state.isPaused) return;
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    doUndo();
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+    e.preventDefault();
+    doRedo();
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'Z')) {
+    e.preventDefault();
+    doRedo();
+    return;
+  }
+
+  // Mode shortcuts
+  if (e.key === 'n' || e.key === 'N') { setInputMode('normal'); return; }
+  if (e.key === 'g' || e.key === 'G') { setInputMode('green');  return; }
+  if (e.key === 'r' || e.key === 'R') { setInputMode('red');    return; }
+  if (e.key === 'e' || e.key === 'E') { eraseSelected();        return; }
+
+  if (state.selectedCells.length === 0) return;
+
+  const num = parseInt(e.key);
+  if (num >= 1 && num <= state.size) { handleInput(num); return; }
+
+  if (e.key === 'Delete' || e.key === 'Backspace') { eraseSelected(); return; }
+
+  // Arrow keys: navigate from the last selected cell (single-select style)
+  const [r, c] = state.selectedCells[state.selectedCells.length - 1];
+  if (e.key === 'ArrowUp'    && r > 0)             { e.preventDefault(); clearSelection(); state.selectedCells = [[r - 1, c]]; refreshSelectionDisplay(); }
+  if (e.key === 'ArrowDown'  && r < state.size - 1) { e.preventDefault(); clearSelection(); state.selectedCells = [[r + 1, c]]; refreshSelectionDisplay(); }
+  if (e.key === 'ArrowLeft'  && c > 0)             { e.preventDefault(); clearSelection(); state.selectedCells = [[r, c - 1]]; refreshSelectionDisplay(); }
+  if (e.key === 'ArrowRight' && c < state.size - 1) { e.preventDefault(); clearSelection(); state.selectedCells = [[r, c + 1]]; refreshSelectionDisplay(); }
+}
+
+// ======================== ERROR DISPLAY ========================
+function updateErrors() {
+  const errors = getErrors();
+  const cageStatuses = getCageStatuses();
+
+  document.querySelectorAll('.cell').forEach(cell => {
+    cell.classList.remove('error', 'cage-correct');
+  });
+
+  errors.forEach(key => {
+    const [r, c] = key.split(',').map(Number);
+    const cell = getCell(r, c);
+    if (cell) cell.classList.add('error');
+  });
+
+  cageStatuses.forEach((status, i) => {
+    if (status === 'correct') {
+      state.cages[i].cells.forEach(([r, c]) => {
+        const cell = getCell(r, c);
+        if (cell) cell.classList.add('cage-correct');
+      });
+    }
+  });
+}
+
+// ======================== TIMER ========================
+function startTimer() {
+  state.timer = 0;
+  clearInterval(state.timerInterval);
+  updateTimerDisplay();
+  state.timerInterval = setInterval(() => {
+    state.timer++;
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(state.timer / 60).toString().padStart(2, '0');
+  const s = (state.timer % 60).toString().padStart(2, '0');
+  document.getElementById('timer').textContent = `${m}:${s}`;
+}
+
+// ======================== REVEAL (EYE) ========================
+function toggleReveal() {
+  if (state.isComplete || state.isPaused) return;
+
+  // Clear selection first
+  clearSelection();
+  setInputMode('normal');
+
+  // If already showing, clear it
+  const existing = document.querySelectorAll('.reveal-correct, .reveal-wrong');
+  if (existing.length > 0) {
+    existing.forEach(el => el.classList.remove('reveal-correct', 'reveal-wrong'));
+    return;
+  }
+
+  const { size, grid, solution } = state;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] === 0) continue;
+      const cell = getCell(r, c);
+      if (!cell) continue;
+      if (grid[r][c] === solution[r][c]) {
+        cell.classList.add('reveal-correct');
+      } else {
+        cell.classList.add('reveal-wrong');
+      }
+    }
+  }
+
+  // Auto-clear after 2 seconds
+  setTimeout(() => {
+    document.querySelectorAll('.reveal-correct, .reveal-wrong').forEach(el => {
+      el.classList.remove('reveal-correct', 'reveal-wrong');
+    });
+  }, 2000);
+}
+
+// ======================== HINT ========================
+function giveHint() {
+  if (state.isComplete || state.isPaused) return;
+
+  // Clear selection first
+  clearSelection();
+  setInputMode('normal');
+
+  const { size, grid, solution } = state;
+
+  // Collect all empty or wrong cells
+  const candidates = [];
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] !== solution[r][c]) {
+        candidates.push([r, c]);
+      }
+    }
+  }
+
+  if (candidates.length === 0) return; // already solved
+
+  // Pick a random one
+  const [r, c] = candidates[Math.floor(Math.random() * candidates.length)];
+  const num = solution[r][c];
+
+  // Use enterNumber so it's undoable
+  enterNumber(r, c, num);
+
+  // Flash the cell to show which one was hinted
+  const cell = getCell(r, c);
+  if (cell) {
+    cell.style.transition = 'background-color 0.3s';
+    cell.style.backgroundColor = 'rgba(123, 31, 162, 0.35)';
+    setTimeout(() => { cell.style.backgroundColor = ''; cell.style.transition = ''; }, 1200);
+  }
+}
+
+// ======================== PAUSE ========================
+function togglePause() {
+  if (state.isComplete) return;
+  state.isPaused = !state.isPaused;
+  const btn = document.getElementById('pauseBtn');
+
+  document.getElementById('gridContainer').classList.toggle('paused', state.isPaused);
+  document.querySelector('.mode-bar').classList.toggle('paused', state.isPaused);
+  document.getElementById('numpad').classList.toggle('paused', state.isPaused);
+
+  if (state.isPaused) {
+    clearInterval(state.timerInterval);
+    btn.innerHTML = '&#9654; Resume';
+    btn.classList.add('paused');
+  } else {
+    state.timerInterval = setInterval(() => {
+      state.timer++;
+      updateTimerDisplay();
+    }, 1000);
+    btn.innerHTML = '&#10074;&#10074; Pause';
+    btn.classList.remove('paused');
+  }
+}
+
+// ======================== WIN ========================
+function handleWin() {
+  state.isComplete = true;
+  clearInterval(state.timerInterval);
+
+  const mins = Math.floor(state.timer / 60);
+  const secs = state.timer % 60;
+  let t = '';
+  if (mins > 0) t += `${mins}m `;
+  t += `${secs}s`;
+
+  document.getElementById('winTime').textContent = t;
+  document.getElementById('winOverlay').classList.remove('hidden');
+}
+
+// ======================== NEW GAME ========================
+function newGame() {
+  const size = parseInt(document.getElementById('size').value);
+  const diff = document.getElementById('difficulty').value;
+
+  state.size = size;
+  state.difficulty = diff;
+  state.isComplete = false;
+  state.moveHistory = [];
+  state.redoHistory = [];
+  state.selectedCells = [];
+  state.inputMode = 'normal';
+  state.grid = Array.from({ length: size }, () => Array(size).fill(0));
+  state.greenNotes = Array.from({ length: size }, () =>
+    Array.from({ length: size }, () => new Set())
+  );
+  state.redNotes = Array.from({ length: size }, () =>
+    Array.from({ length: size }, () => new Set())
+  );
+
+  document.getElementById('winOverlay').classList.add('hidden');
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+
+  setInputMode('normal');
+
+  // Use setTimeout to let the loading overlay render before heavy computation
+  setTimeout(() => {
+    const { solution, cages, rated } = generatePuzzleWithDifficulty(size, diff);
+
+    state.solution = solution;
+    state.cages = cages;
+
+    // Show actual difficulty rating
+    const diffEl = document.getElementById('diffLabel');
+    diffEl.textContent = rated.charAt(0).toUpperCase() + rated.slice(1);
+    diffEl.className = '';
+    diffEl.id = 'diffLabel';
+    diffEl.classList.add(rated);
+
+    document.getElementById('loadingOverlay').classList.add('hidden');
+
+    renderGrid();
+    startTimer();
+  }, 30);
+}
+
+// ======================== CHECK PROGRESS ========================
+function checkProgress() {
+  const el = document.getElementById('checkResult');
+  el.className = '';
+
+  const { grid, solution, size } = state;
+  let filled = 0;
+  let wrong = false;
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] !== 0) {
+        filled++;
+        if (grid[r][c] !== solution[r][c]) {
+          wrong = true;
+        }
+      }
+    }
+  }
+
+  if (filled === 0) {
+    el.textContent = "You haven't entered any numbers yet.";
+    el.className = 'empty';
+  } else if (wrong) {
+    el.textContent = "There's a mistake somewhere. Keep checking!";
+    el.className = 'wrong';
+  } else {
+    el.textContent = "All correct so far! Keep going!";
+    el.className = 'correct';
+  }
+}
+
+// ======================== ERASE SELECTED ========================
+function eraseSelected() {
+  if (state.selectedCells.length === 0 || state.isComplete) return;
+  for (const [r, c] of state.selectedCells) {
+    const prev = state.grid[r][c];
+    const prevGreen = new Set(state.greenNotes[r][c]);
+    const prevRed = new Set(state.redNotes[r][c]);
+    if (prev === 0 && prevGreen.size === 0 && prevRed.size === 0) continue;
+
+    state.moveHistory.push({ type: 'value', r, c, prev, prevGreen, prevRed });
+    state.redoHistory = [];
+    state.grid[r][c] = 0;
+    state.greenNotes[r][c] = new Set();
+    state.redNotes[r][c] = new Set();
+
+    const cell = getCell(r, c);
+    if (cell) cell.querySelector('.cell-value').textContent = '';
+    renderPencilMarks(r, c);
+  }
+  updateErrors();
+}
+
+// ======================== ADD ALL POSSIBLE ========================
+function addAllPossible() {
+  if (state.selectedCells.length === 0 || state.isComplete) return;
+  for (const [r, c] of state.selectedCells) {
+    // Skip cells that already have a main value
+    if (state.grid[r][c] !== 0) continue;
+
+    const prevGreen = new Set(state.greenNotes[r][c]);
+    const prevRed = new Set(state.redNotes[r][c]);
+
+    const allNums = new Set();
+    for (let i = 1; i <= state.size; i++) allNums.add(i);
+
+    // Skip if already has all
+    if (prevGreen.size === state.size && prevRed.size === 0) continue;
+
+    state.moveHistory.push({ type: 'value', r, c, prev: 0, prevGreen, prevRed });
+    state.redoHistory = [];
+    state.greenNotes[r][c] = allNums;
+    state.redNotes[r][c] = new Set();
+
+    renderPencilMarks(r, c);
+  }
+}
+
+// ======================== RESTART PUZZLE ========================
+function restartPuzzle() {
+  if (state.isComplete) return;
+  const { size } = state;
+  state.grid = Array.from({ length: size }, () => Array(size).fill(0));
+  state.greenNotes = Array.from({ length: size }, () =>
+    Array.from({ length: size }, () => new Set())
+  );
+  state.redNotes = Array.from({ length: size }, () =>
+    Array.from({ length: size }, () => new Set())
+  );
+  state.moveHistory = [];
+  state.redoHistory = [];
+  state.selectedCells = [];
+
+  // Reset timer
+  startTimer();
+
+  // Reset check result
+  const el = document.getElementById('checkResult');
+  el.className = '';
+  el.style.display = 'none';
+
+  renderGrid();
+}
+
+// ======================== INIT ========================
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('newGameBtn').addEventListener('click', newGame);
+  document.getElementById('restartBtn').addEventListener('click', restartPuzzle);
+  document.getElementById('hintBtn').addEventListener('click', giveHint);
+  document.getElementById('revealBtn').addEventListener('click', toggleReveal);
+  document.getElementById('pauseBtn').addEventListener('click', togglePause);
+  document.addEventListener('keydown', handleKeydown);
+
+  document.getElementById('modeNormal').addEventListener('click', () => setInputMode('normal'));
+  document.getElementById('modeGreen').addEventListener('click',  () => setInputMode('green'));
+  document.getElementById('modeRed').addEventListener('click',    () => setInputMode('red'));
+
+  document.getElementById('checkBtn').addEventListener('click', checkProgress);
+
+  window.addEventListener('resize', () => {
+    const cellSize = getCellSize();
+    document.documentElement.style.setProperty('--cell-size', cellSize + 'px');
+  });
+
+  newGame();
+});
+
+// =================== PARTY THEME ===================
+var partyBalloons = document.getElementById('partyBalloons');
+var bColors = ['rgba(255,105,180,0.6)','rgba(196,77,255,0.6)','rgba(255,20,147,0.5)','rgba(255,182,213,0.6)','rgba(180,50,200,0.5)'];
+
+function spawnPartyBalloon() {
+  var b = document.createElement('div');
+  b.className = 'pbloon';
+  b.style.left = (5 + Math.random() * 90) + '%';
+  b.style.setProperty('--bw', (30 + Math.random() * 25) + 'px');
+  b.style.setProperty('--bc', bColors[Math.floor(Math.random() * bColors.length)]);
+  b.style.setProperty('--bd', (10 + Math.random() * 10) + 's');
+  b.style.setProperty('--dd', '0s');
+  partyBalloons.appendChild(b);
+  setTimeout(function() { b.remove(); }, 22000);
+}
+
+var partyInterval = null;
+
+// Start party mode by default
+for (var i = 0; i < 6; i++) spawnPartyBalloon();
+partyInterval = setInterval(spawnPartyBalloon, 3000);
+
+document.getElementById('themeToggle').onclick = function() {
+  document.body.classList.toggle('party');
+  if (document.body.classList.contains('party')) {
+    // Spawn initial balloons
+    for (var i = 0; i < 6; i++) spawnPartyBalloon();
+    partyInterval = setInterval(spawnPartyBalloon, 3000);
+  } else {
+    clearInterval(partyInterval);
+    partyBalloons.innerHTML = '';
+  }
+};
+</script>
+</body>
+</html>

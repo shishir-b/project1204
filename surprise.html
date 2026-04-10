@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Happy Birthday!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: #1a0a2e;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      font-family: 'Quicksand', sans-serif;
+      transition: background 0.8s ease;
+    }
+
+    body.celebrate {
+      background: linear-gradient(135deg, #1a0011 0%, #2d0a1e 25%, #4a1942 50%, #1a0a2e 75%, #0d0015 100%);
+    }
+
+    /* ---- BUTTON ---- */
+    .scene { text-align: center; z-index: 10; }
+
+    .pop-btn {
+      padding: 22px 60px;
+      background: linear-gradient(135deg, #ff6b9d, #c44dff);
+      color: white; border: none; border-radius: 50px;
+      font-size: 1.6em; font-weight: 700;
+      font-family: 'Quicksand', sans-serif;
+      cursor: pointer;
+      box-shadow: 0 8px 30px rgba(255,107,157,0.5);
+    }
+
+    .pop-btn.burst {
+      animation: burst 0.35s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes burst {
+      0% { transform: scale(1); opacity: 1; }
+      40% { transform: scale(1.4); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    /* ---- CONFETTI: 20 simple colored squares, GPU only ---- */
+    .cpiece {
+      position: fixed;
+      width: 10px; height: 10px;
+      z-index: 5; pointer-events: none;
+      opacity: 0;
+      transform: translate3d(0,0,0);
+    }
+
+    .cpiece.go {
+      opacity: 1;
+      animation: cburst var(--d) ease-out forwards;
+    }
+
+    @keyframes cburst {
+      0%   { transform: translate3d(0,0,0) rotate(0deg); opacity: 1; }
+      100% { transform: translate3d(var(--ex), var(--ey), 0) rotate(600deg); opacity: 0; }
+    }
+
+    /* ---- CARD: pre-rendered, just visibility flip ---- */
+    .card-bg {
+      position: fixed; inset: 0; z-index: 20;
+      background: rgba(255,255,255,0.92);
+      display: flex; align-items: center; justify-content: center;
+      visibility: hidden;
+    }
+
+    .card-bg.show { visibility: visible; }
+
+    .card {
+      background: linear-gradient(145deg, #1a1035, #2a1545);
+      border-radius: 24px;
+      padding: clamp(40px,8vw,60px) clamp(30px,6vw,55px);
+      max-width: 520px; width: 45vw;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 0 40px rgba(196,77,255,0.15);
+      position: relative;
+      transform: scale(0.5);
+      opacity: 0;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+    }
+
+    .card-bg.show .card { transform: scale(1); opacity: 1; }
+
+    .card::before {
+      content: '';
+      position: absolute; inset: -3px;
+      background: linear-gradient(135deg, #c44dff, #7c4dff, #c44dff);
+      border-radius: 27px; z-index: -1;
+    }
+
+    .card-emoji { font-size: clamp(3.5em, 12vw, 5em); margin-bottom: 12px; }
+
+    .card h2 {
+      font-family: 'Dancing Script', cursive;
+      font-size: clamp(2em, 7vw, 3.2em);
+      color: #e0b0ff; margin-bottom: 16px;
+    }
+
+    .card p {
+      font-family: 'Quicksand', sans-serif;
+      font-size: clamp(1.1em, 3.5vw, 1.55em);
+      color: #d4b8e8; line-height: 1.7; margin-bottom: 8px;
+    }
+
+    .card .hearts {
+      margin-top: 16px; font-size: 1.8em;
+      animation: hb 1.2s ease-in-out infinite;
+      color: #ff6b9d;
+    }
+
+    @keyframes hb {
+      0%,100% { transform: scale(1); }
+      15% { transform: scale(1.2); }
+      30% { transform: scale(1); }
+    }
+
+    .card-btns { margin-top: 22px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .card-btn {
+      padding: 12px 30px; border: none; border-radius: 30px;
+      font-size: 1em; font-weight: 700;
+      font-family: 'Quicksand', sans-serif;
+      cursor: pointer; text-decoration: none; color: white;
+    }
+
+    .btn-gold { background: linear-gradient(135deg, #ffd700, #ff8c00); }
+    .btn-purple { background: linear-gradient(135deg, #c44dff, #7c4dff); }
+
+    /* Side gifs */
+    .side-gif {
+      position: fixed;
+      z-index: 21;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.4s ease 0.3s;
+      pointer-events: none;
+    }
+
+    .side-gif.show {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .gif-col {
+      position: fixed;
+      z-index: 21;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.4s ease 0.3s;
+      pointer-events: none;
+    }
+
+    .gif-col.show {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .gif-col img {
+      width: clamp(140px, 22vw, 220px);
+      display: block;
+      border-radius: 10px;
+    }
+
+    .gif-col-left {
+      right: calc(50% + 22vw);
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .gif-col-right {
+      left: calc(50% + 22vw);
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    @media (max-width: 700px) {
+      .gif-col-left, .gif-col-right { display: none; }
+    }
+
+    /* Balloons */
+    .balloons-wrap {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 2;
+      overflow: hidden; display: none;
+    }
+
+    .balloons-wrap.active { display: block; }
+
+    .bloon {
+      position: absolute;
+      bottom: -150px;
+      width: var(--bw);
+      height: calc(var(--bw) * 1.2);
+      background: var(--bc);
+      border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+      animation: bFloat var(--bd) ease-in forwards;
+      animation-delay: var(--dd);
+      opacity: 0;
+    }
+
+    .bloon::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: 50%;
+      width: 1px; height: 60px;
+      background: rgba(255,255,255,0.25);
+      transform: translateX(-50%);
+    }
+
+    @keyframes bFloat {
+      0% { transform: translateY(0); opacity: 0; }
+      8% { opacity: 0.85; }
+      100% { transform: translateY(-120vh); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="balloons-wrap" id="balloonsWrap"></div>
+
+  <div class="scene" id="scene">
+    <button class="pop-btn" id="popBtn">&#127881; Pop Me! &#127881;</button>
+  </div>
+
+  <div class="card-bg" id="cardBg">
+    <div class="card" id="card1">
+      <div class="card-emoji">&#127874;</div>
+      <h2 id="c1Title"></h2>
+      <p id="c1Line1"></p>
+      <p id="c1Line2"></p>
+      <div class="hearts" id="c1Hearts" style="visibility:hidden;">&#128151; &#128152; &#128151;</div>
+      <div class="card-btns">
+        <button class="card-btn btn-gold" id="tyBtn" style="visibility:hidden;">&#10084; Thank you &#10084;</button>
+      </div>
+    </div>
+    <div class="card" id="card2" style="display:none;">
+      <div class="card-emoji">&#127873;</div>
+      <h2 id="c2Title"></h2>
+      <p id="c2Line1"></p>
+      <div style="display:flex;justify-content:center;gap:16px;margin:20px 0;">
+        <img src="assets/gifs/gifts1.gif" alt="Gift" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+        <img src="assets/gifs/gift2.gif" alt="Gift" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+      </div>
+      <div class="card-btns">
+        <button class="card-btn btn-gold" id="openGiftsBtn" style="visibility:hidden;">&#127881; Open Gifts &#127881;</button>
+      </div>
+    </div>
+    <div class="card" id="card3" style="display:none;">
+      <div class="card-emoji">&#127873;</div>
+      <h2 id="c3Title"></h2>
+      <div style="display:flex;justify-content:center;gap:16px;margin:20px 0;">
+        <img src="assets/gifs/gifts1.gif" alt="Gift" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+        <img src="assets/gifs/gift2.gif" alt="Gift" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+      </div>
+      <div class="card-btns" id="c3Btns" style="visibility:hidden;">
+        <button class="card-btn btn-gold" id="yesBtn">&#128525; Yes!</button>
+        <button class="card-btn btn-purple" id="noBtn">&#129300; No</button>
+      </div>
+    </div>
+    <div class="card" id="card4" style="display:none;">
+      <div class="card-emoji">&#128269;</div>
+      <h2 id="c4Title"></h2>
+      <p id="c4Line1"></p>
+      <p id="hintTimer" style="font-size:2.5em;color:#d32f2f;font-weight:700;margin:10px 0;">&#9202; 10</p>
+      <p id="hintExtra" style="display:none;opacity:0;transition:opacity 0.5s;">(maybe some 9&times;9 &#129300;)</p>
+      <div style="display:flex;justify-content:center;gap:16px;margin:20px 0;">
+        <img src="assets/gifs/hint1.gif" alt="Hint" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+        <img src="assets/gifs/hint2.gif" alt="Hint" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+      </div>
+      <div class="card-btns">
+        <button class="card-btn btn-gold" id="goGiftBtn" style="opacity:0.35;pointer-events:none;">&#127881; Let's Go! &#127881;</button>
+      </div>
+    </div>
+    <div class="card" id="card5" style="display:none;max-width:650px;width:55vw;">
+      <div class="card-emoji">&#127881;&#127873;&#127881;</div>
+      <h2 id="c5Title"></h2>
+      <p id="c5Line1"></p>
+      <p id="c5Line2"></p>
+      <div class="hearts" id="c5Hearts" style="visibility:hidden;">&#129321; &#127881; &#128151;</div>
+      <p id="c5Pick" style="margin-top:20px;font-weight:700;color:#e0b0ff;font-size:1.2em;visibility:hidden;">Pick your puzzle:</p>
+      <div class="card-btns" id="c5Btns" style="margin-top:14px;gap:14px;visibility:hidden;">
+        <a href="kenken.html" class="card-btn btn-gold" style="text-decoration:none;padding:14px 28px;font-size:1.1em;">&#129513; KenKen</a>
+        <button class="card-btn btn-purple" style="padding:14px 28px;font-size:1.1em;opacity:0.5;cursor:not-allowed;">&#128290; Coming Soon</button>
+        <button class="card-btn btn-purple" style="padding:14px 28px;font-size:1.1em;opacity:0.5;cursor:not-allowed;">&#129513; Coming Soon</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="gif-col gif-col-left" id="gifL">
+    <img src="assets/gifs/hbd3.gif" alt="HBD">
+    <img src="assets/gifs/hbd4.gif" alt="HBD">
+    <img src="assets/gifs/hbd5.gif" alt="HBD">
+  </div>
+  <div class="gif-col gif-col-right" id="gifR">
+    <img src="assets/gifs/hdb2.gif" alt="HBD">
+    <img src="assets/gifs/hbd6.gif" alt="HBD">
+    <img src="assets/gifs/hbd7.gif" alt="HBD">
+  </div>
+
+<script>
+  // Pre-build 20 tiny colored squares for confetti (very lightweight)
+  var colors = ['#ff6b9d','#ffd700','#c44dff','#00e5ff','#76ff03','#ff6f00','#ffeb3b','#e91e63','#7c4dff','#69f0ae'];
+  var cpieces = [];
+  for (var i = 0; i < 60; i++) {
+    var d = document.createElement('div');
+    d.className = 'cpiece';
+    d.style.background = colors[i % colors.length];
+    d.style.borderRadius = (i % 3 === 0) ? '50%' : '2px';
+    d.style.width = (8 + Math.random() * 8) + 'px';
+    d.style.height = (6 + Math.random() * 6) + 'px';
+    var angle = (Math.PI * 2) * (i / 60) + (Math.random() - 0.5) * 0.5;
+    var dist = 20 + Math.random() * 55;
+    d.style.setProperty('--ex', (Math.cos(angle) * dist) + 'vw');
+    d.style.setProperty('--ey', (Math.sin(angle) * dist - 10) + 'vh');
+    d.style.setProperty('--d', (0.8 + Math.random() * 0.8) + 's');
+    document.body.appendChild(d);
+    cpieces.push(d);
+  }
+
+  document.getElementById('popBtn').onclick = function() {
+    var r = this.getBoundingClientRect();
+    var cx = r.left + r.width / 2;
+    var cy = r.top + r.height / 2;
+
+    // Burst button
+    this.classList.add('burst');
+
+    // Position and fire confetti from button center
+    for (var i = 0; i < cpieces.length; i++) {
+      cpieces[i].style.left = cx + 'px';
+      cpieces[i].style.top = cy + 'px';
+      cpieces[i].classList.add('go');
+    }
+
+    // Show card (just visibility flip - instant)
+    setTimeout(function() {
+      document.getElementById('scene').style.display = 'none';
+      document.getElementById('cardBg').classList.add('show');
+      document.getElementById('gifL').classList.add('show');
+      document.getElementById('gifR').classList.add('show');
+      // Start typewriter
+      startTypewriter();
+    }, 450);
+  };
+
+  // ---- TYPEWRITER ----
+  function typeText(el, text, speed, cb) {
+    var i = 0;
+    el.textContent = '';
+    function tick() {
+      if (i < text.length) {
+        el.textContent += text.charAt(i);
+        i++;
+        setTimeout(tick, speed);
+      } else if (cb) cb();
+    }
+    tick();
+  }
+
+  function startTypewriter() {
+    typeText(document.getElementById('c1Title'), 'Happy Birthday My Love!', 62, function() {
+      typeText(document.getElementById('c1Line1'), 'You make every single day brighter, every moment more beautiful, and every heartbeat worth it.', 38, function() {
+        typeText(document.getElementById('c1Line2'), "Here's to you, the most amazing person in my world \u2764", 38, function() {
+          document.getElementById('c1Hearts').style.visibility = 'visible';
+          document.getElementById('tyBtn').style.visibility = 'visible';
+        });
+      });
+    });
+  }
+
+  document.getElementById('tyBtn').onclick = function() {
+    document.getElementById('card1').style.display = 'none';
+    document.getElementById('card2').style.display = 'block';
+    document.getElementById('card2').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    typeText(document.getElementById('c2Title'), 'Ohh wait...', 62, function() {
+      typeText(document.getElementById('c2Line1'), "Don't you want your gifts?", 38, function() {
+        document.getElementById('openGiftsBtn').style.visibility = 'visible';
+      });
+    });
+  };
+
+  document.getElementById('openGiftsBtn').onclick = function() {
+    document.getElementById('card2').style.display = 'none';
+    document.getElementById('card3').style.display = 'block';
+    document.getElementById('card3').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    typeText(document.getElementById('c3Title'), 'Can you guess the gifts?', 62, function() {
+      document.getElementById('c3Btns').style.visibility = 'visible';
+    });
+  };
+
+  document.getElementById('yesBtn').onclick = function() {
+    document.getElementById('card3').style.display = 'none';
+    document.getElementById('card4').style.display = 'block';
+    document.getElementById('card4').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    typeText(document.getElementById('c4Title'), "Here's a hint!", 62, function() {
+      typeText(document.getElementById('c4Line1'), 'Which is your favourite puzzle?', 38, function() {
+        // Countdown from 10
+    var count = 10;
+    var timerEl = document.getElementById('hintTimer');
+    var goBtn = document.getElementById('goGiftBtn');
+    var interval = setInterval(function() {
+      count--;
+      if (count > 0) {
+        timerEl.innerHTML = '&#9202; ' + count;
+      } else {
+        clearInterval(interval);
+        timerEl.innerHTML = '\u2728 Here\'s your hint! \u2728';
+        timerEl.style.color = '#e0b0ff';
+        var extra = document.getElementById('hintExtra');
+        extra.style.display = 'block';
+        setTimeout(function() { extra.style.opacity = '1'; }, 50);
+        goBtn.style.opacity = '1';
+        goBtn.style.pointerEvents = 'auto';
+      }
+    }, 1000);
+      });
+    });
+  };
+
+  document.getElementById('noBtn').onclick = function() {
+    var yes = document.getElementById('yesBtn');
+    var no = document.getElementById('noBtn');
+    yes.textContent = '😍 Yes you can!';
+    yes.style.transition = 'transform 0.3s, padding 0.3s, font-size 0.3s';
+    yes.style.transform = 'scale(1.4)';
+    yes.style.fontSize = '1.2em';
+    no.style.transition = 'transform 0.3s, font-size 0.3s';
+    no.style.transform = 'scale(0.6)';
+    no.style.fontSize = '0.7em';
+  };
+  document.getElementById('goGiftBtn').onclick = function() {
+    // Hide card4
+    document.getElementById('card4').style.display = 'none';
+
+    // Fire confetti again
+    for (var i = 0; i < cpieces.length; i++) {
+      cpieces[i].classList.remove('go');
+    }
+    var cx2 = window.innerWidth / 2;
+    var cy2 = window.innerHeight / 2;
+    for (var i = 0; i < cpieces.length; i++) {
+      cpieces[i].style.left = cx2 + 'px';
+      cpieces[i].style.top = cy2 + 'px';
+    }
+    requestAnimationFrame(function() {
+      for (var i = 0; i < cpieces.length; i++) cpieces[i].classList.add('go');
+    });
+
+    // Show card5
+    document.getElementById('card5').style.display = 'block';
+    document.getElementById('card5').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+    // Typewriter for card5
+    typeText(document.getElementById('c5Title'), 'You guessed it right!', 62, function() {
+      typeText(document.getElementById('c5Line1'), "I know you're obsessed with these puzzles, and I know finishing them always leaves you wanting more.", 32, function() {
+        typeText(document.getElementById('c5Line2'), 'So I made you your very own puzzle game with unlimited levels! Happy solving!', 32, function() {
+          document.getElementById('c5Hearts').style.visibility = 'visible';
+          document.getElementById('c5Pick').style.visibility = 'visible';
+          document.getElementById('c5Btns').style.visibility = 'visible';
+        });
+      });
+    });
+
+    // Purple background
+    document.body.classList.add('celebrate');
+
+    // Spawn balloons
+    var bWrap = document.getElementById('balloonsWrap');
+    bWrap.classList.add('active');
+    var bColors = ['rgba(255,105,180,0.75)','rgba(255,20,147,0.7)','rgba(196,77,255,0.7)','rgba(255,182,213,0.8)','rgba(220,60,120,0.7)','rgba(180,50,200,0.65)'];
+    function spawnB() {
+      var b = document.createElement('div');
+      b.className = 'bloon';
+      b.style.left = (5 + Math.random() * 90) + '%';
+      b.style.setProperty('--bw', (35 + Math.random() * 30) + 'px');
+      b.style.setProperty('--bc', bColors[Math.floor(Math.random() * bColors.length)]);
+      b.style.setProperty('--bd', (8 + Math.random() * 8) + 's');
+      b.style.setProperty('--dd', '0s');
+      bWrap.appendChild(b);
+      setTimeout(function() { b.remove(); }, 18000);
+    }
+    // Initial burst
+    for (var b = 0; b < 8; b++) spawnB();
+    // Keep spawning
+    setInterval(spawnB, 2000);
+  };
+
+  // Auto-trigger if redirected from countdown
+  if (window.location.search.indexOf('auto=1') !== -1) {
+    setTimeout(function() {
+      document.getElementById('popBtn').click();
+    }, 500);
+  }
+</script>
+</body>
+</html>
