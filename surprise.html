@@ -68,26 +68,21 @@
     .card-bg {
       position: fixed; inset: 0; z-index: 20;
       background: rgba(255,255,255,0.92);
-      display: flex; align-items: center; justify-content: center;
-      visibility: hidden;
+      display: none; align-items: center; justify-content: center;
     }
 
-    .card-bg.show { visibility: visible; }
+    .card-bg.show { display: flex; }
 
     .card {
-      background: linear-gradient(145deg, #1a1035, #2a1545);
+      background: linear-gradient(145deg, #a855f7, #7c3aed, #c44dff, #e879f9);
       border-radius: 24px;
-      padding: clamp(40px,8vw,60px) clamp(30px,6vw,55px);
-      max-width: 520px; width: 45vw;
+      padding: clamp(30px,6vw,60px) clamp(20px,5vw,55px);
+      max-width: 520px; width: max(45vw, 340px);
       text-align: center;
       box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 0 40px rgba(196,77,255,0.15);
       position: relative;
-      transform: scale(0.5);
-      opacity: 0;
-      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+      animation: cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-
-    .card-bg.show .card { transform: scale(1); opacity: 1; }
 
     .card::before {
       content: '';
@@ -189,6 +184,44 @@
       .gif-col-left, .gif-col-right { display: none; }
     }
 
+    /* Mobile fixes */
+    @media (max-width: 520px) {
+      .pop-btn {
+        padding: 16px 40px;
+        font-size: 1.3em;
+      }
+
+      .card {
+        width: 92vw;
+        max-width: 92vw;
+        padding: 24px 18px;
+        border-radius: 18px;
+      }
+
+      .card-emoji { font-size: 2.8em; margin-bottom: 8px; }
+
+      .card h2 { font-size: 1.6em; margin-bottom: 12px; }
+
+      .card p { font-size: 0.95em; line-height: 1.5; margin-bottom: 6px; }
+
+      .card .hearts { font-size: 1.4em; margin-top: 10px; }
+
+      .card-btns { gap: 8px; margin-top: 16px; }
+
+      .card-btn { padding: 10px 22px; font-size: 0.9em; }
+
+      .card-bg { padding: 10px; }
+
+      #hintTimer { font-size: 2em !important; }
+    }
+
+    @media (max-width: 380px) {
+      .card { padding: 20px 14px; }
+      .card h2 { font-size: 1.4em; }
+      .card p { font-size: 0.88em; }
+      .pop-btn { padding: 14px 32px; font-size: 1.1em; }
+    }
+
     /* Balloons */
     .balloons-wrap {
       position: fixed; inset: 0;
@@ -224,10 +257,52 @@
       8% { opacity: 0.85; }
       100% { transform: translateY(-120vh); opacity: 0; }
     }
+
+    /* Background cute floaters - always visible */
+    .floaters {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 25;
+      overflow: hidden;
+    }
+
+    .floater {
+      position: absolute;
+      bottom: -40px;
+      font-size: var(--fs);
+      animation: floatUp var(--fd) ease-in infinite;
+      animation-delay: var(--dl);
+      opacity: 0;
+      left: var(--lx);
+    }
+
+    @keyframes floatUp {
+      0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+      8% { opacity: 0.8; }
+      50% { opacity: 0.6; }
+      100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
+    }
+
+    /* Stars */
+    .star {
+      position: fixed;
+      width: 2px; height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--dur) ease-in-out infinite;
+      opacity: 0;
+      z-index: 25;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.1; }
+      50% { opacity: 0.7; }
+    }
   </style>
 </head>
 <body>
 
+  <div class="floaters" id="floaters"></div>
+  <div id="stars"></div>
   <div class="balloons-wrap" id="balloonsWrap"></div>
 
   <div class="scene" id="scene">
@@ -283,14 +358,14 @@
         <button class="card-btn btn-gold" id="goGiftBtn" style="opacity:0.35;pointer-events:none;">&#127881; Let's Go! &#127881;</button>
       </div>
     </div>
-    <div class="card" id="card5" style="display:none;max-width:650px;width:55vw;">
+    <div class="card" id="card5" style="display:none;max-width:650px;width:max(55vw, 340px);">
       <div class="card-emoji">&#127881;&#127873;&#127881;</div>
       <h2 id="c5Title"></h2>
       <p id="c5Line1"></p>
       <p id="c5Line2"></p>
       <div class="hearts" id="c5Hearts" style="visibility:hidden;">&#129321; &#127881; &#128151;</div>
       <p id="c5Pick" style="margin-top:20px;font-weight:700;color:#e0b0ff;font-size:1.2em;visibility:hidden;">Pick your puzzle:</p>
-      <div class="card-btns" id="c5Btns" style="margin-top:14px;gap:14px;visibility:hidden;">
+      <div class="card-btns" id="c5Btns" style="margin-top:14px;gap:14px;visibility:hidden;flex-direction:column;align-items:center;">
         <a href="kenken.html" class="card-btn btn-gold" style="text-decoration:none;padding:14px 28px;font-size:1.1em;">&#129513; KenKen</a>
         <button class="card-btn btn-purple" style="padding:14px 28px;font-size:1.1em;opacity:0.5;cursor:not-allowed;">&#128290; Coming Soon</button>
         <button class="card-btn btn-purple" style="padding:14px 28px;font-size:1.1em;opacity:0.5;cursor:not-allowed;">&#129513; Coming Soon</button>
@@ -310,6 +385,35 @@
   </div>
 
 <script>
+  // ---- Stars ----
+  var starsEl = document.getElementById('stars');
+  for (var i = 0; i < 35; i++) {
+    var s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.setProperty('--dur', (2 + Math.random() * 3) + 's');
+    s.style.animationDelay = Math.random() * 3 + 's';
+    starsEl.appendChild(s);
+  }
+
+  // ---- Floating cute things (lightweight) ----
+  var floaterEl = document.getElementById('floaters');
+  var cuteThings = ['💗','💕','✨','💖','♥','🌸','💫','🦋'];
+  function spawnFloater() {
+    var f = document.createElement('div');
+    f.className = 'floater';
+    f.textContent = cuteThings[Math.floor(Math.random() * cuteThings.length)];
+    f.style.setProperty('--lx', (Math.random() * 100) + '%');
+    f.style.setProperty('--fs', (24 + Math.random() * 22) + 'px');
+    f.style.setProperty('--fd', (10 + Math.random() * 10) + 's');
+    f.style.setProperty('--dl', '0s');
+    floaterEl.appendChild(f);
+    setTimeout(function() { f.remove(); }, 22000);
+  }
+  for (var i = 0; i < 6; i++) setTimeout(spawnFloater, Math.random() * 4000);
+  setInterval(spawnFloater, 3500);
+
   // Pre-build 20 tiny colored squares for confetti (very lightweight)
   var colors = ['#ff6b9d','#ffd700','#c44dff','#00e5ff','#76ff03','#ff6f00','#ffeb3b','#e91e63','#7c4dff','#69f0ae'];
   var cpieces = [];
