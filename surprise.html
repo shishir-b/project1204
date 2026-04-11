@@ -332,6 +332,20 @@
         <button class="card-btn btn-gold" id="openGiftsBtn" style="visibility:hidden;">&#127881; Open Gifts &#127881;</button>
       </div>
     </div>
+    <div class="card" id="cardJournal" style="display:none;">
+      <div class="card-emoji">&#127873;</div>
+      <h2 id="cjTitle"></h2>
+      <p id="cjLine1"></p>
+      <p id="cjLine2" style="margin-top:12px;"></p>
+      <div style="display:flex;justify-content:center;gap:16px;margin:20px 0;">
+        <img src="assets/gifs/gifts1.gif" alt="Gift" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+        <img src="assets/gifs/gift2.gif" alt="Gift" style="width:clamp(100px,18vw,160px);border-radius:12px;">
+      </div>
+      <div class="hearts">&#128151; &#128152; &#128151;</div>
+      <div class="card-btns">
+        <button class="card-btn btn-gold" id="journalDoneBtn" style="visibility:hidden;">&#10004; Done! Let's go &#10004;</button>
+      </div>
+    </div>
     <div class="card" id="card3" style="display:none;">
       <div class="card-emoji">&#127873;</div>
       <h2 id="c3Title"></h2>
@@ -459,13 +473,14 @@
     }, 450);
   };
 
-  // ---- TYPEWRITER ----
-  function typeText(el, text, speed, cb) {
+  // ---- TYPEWRITER (word by word) ----
+  function typeWords(el, text, speed, cb) {
+    var words = text.split(' ');
     var i = 0;
     el.textContent = '';
     function tick() {
-      if (i < text.length) {
-        el.textContent += text.charAt(i);
+      if (i < words.length) {
+        el.textContent += (i > 0 ? ' ' : '') + words[i];
         i++;
         setTimeout(tick, speed);
       } else if (cb) cb();
@@ -474,9 +489,9 @@
   }
 
   function startTypewriter() {
-    typeText(document.getElementById('c1Title'), 'Happy Birthday My Love!', 62, function() {
-      typeText(document.getElementById('c1Line1'), 'You make every single day brighter, every moment more beautiful, and every heartbeat worth it.', 38, function() {
-        typeText(document.getElementById('c1Line2'), "Here's to you, the most amazing person in my world \u2764", 38, function() {
+    typeWords(document.getElementById('c1Title'), 'Happy Birthday My Love!', 120, function() {
+      typeWords(document.getElementById('c1Line1'), 'You make every single day brighter, every moment more beautiful, and every heartbeat worth it.', 80, function() {
+        typeWords(document.getElementById('c1Line2'), "Here's to you, the most amazing person in my world \u2764", 80, function() {
           document.getElementById('c1Hearts').style.visibility = 'visible';
           document.getElementById('tyBtn').style.visibility = 'visible';
         });
@@ -488,8 +503,8 @@
     document.getElementById('card1').style.display = 'none';
     document.getElementById('card2').style.display = 'block';
     document.getElementById('card2').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    typeText(document.getElementById('c2Title'), 'Ohh wait...', 62, function() {
-      typeText(document.getElementById('c2Line1'), "Don't you want your gifts?", 38, function() {
+    typeWords(document.getElementById('c2Title'), 'Ohh wait...', 120, function() {
+      typeWords(document.getElementById('c2Line1'), "Don't you want your gifts?", 80, function() {
         document.getElementById('openGiftsBtn').style.visibility = 'visible';
       });
     });
@@ -497,9 +512,22 @@
 
   document.getElementById('openGiftsBtn').onclick = function() {
     document.getElementById('card2').style.display = 'none';
+    document.getElementById('cardJournal').style.display = 'block';
+    document.getElementById('cardJournal').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    typeWords(document.getElementById('cjTitle'), 'Shishir says...', 120, function() {
+      typeWords(document.getElementById('cjLine1'), 'Find the first gift!', 80, function() {
+        typeWords(document.getElementById('cjLine2'), 'It can be found in the 3D sofa pocket', 80, function() {
+          document.getElementById('journalDoneBtn').style.visibility = 'visible';
+        });
+      });
+    });
+  };
+
+  document.getElementById('journalDoneBtn').onclick = function() {
+    document.getElementById('cardJournal').style.display = 'none';
     document.getElementById('card3').style.display = 'block';
     document.getElementById('card3').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    typeText(document.getElementById('c3Title'), 'Can you guess the gifts?', 62, function() {
+    typeWords(document.getElementById('c3Title'), 'Can you guess the gifts?', 120, function() {
       document.getElementById('c3Btns').style.visibility = 'visible';
     });
   };
@@ -508,27 +536,27 @@
     document.getElementById('card3').style.display = 'none';
     document.getElementById('card4').style.display = 'block';
     document.getElementById('card4').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    typeText(document.getElementById('c4Title'), "Here's a hint!", 62, function() {
-      typeText(document.getElementById('c4Line1'), 'Which is your favourite puzzle?', 38, function() {
+    typeWords(document.getElementById('c4Title'), "Here's a hint!", 120, function() {
+      typeWords(document.getElementById('c4Line1'), 'Which is your favourite puzzle?', 80, function() {
         // Countdown from 10
-    var count = 10;
-    var timerEl = document.getElementById('hintTimer');
-    var goBtn = document.getElementById('goGiftBtn');
-    var interval = setInterval(function() {
-      count--;
-      if (count > 0) {
-        timerEl.innerHTML = '&#9202; ' + count;
-      } else {
-        clearInterval(interval);
-        timerEl.innerHTML = '\u2728 Here\'s your hint! \u2728';
-        timerEl.style.color = '#e0b0ff';
-        var extra = document.getElementById('hintExtra');
-        extra.style.display = 'block';
-        setTimeout(function() { extra.style.opacity = '1'; }, 50);
-        goBtn.style.opacity = '1';
-        goBtn.style.pointerEvents = 'auto';
-      }
-    }, 1000);
+        var count = 10;
+        var timerEl = document.getElementById('hintTimer');
+        var goBtn = document.getElementById('goGiftBtn');
+        var interval = setInterval(function() {
+          count--;
+          if (count > 0) {
+            timerEl.innerHTML = '&#9202; ' + count;
+          } else {
+            clearInterval(interval);
+            timerEl.innerHTML = '\u2728 Here\'s your hint! \u2728';
+            timerEl.style.color = '#e0b0ff';
+            var extra = document.getElementById('hintExtra');
+            extra.style.display = 'block';
+            setTimeout(function() { extra.style.opacity = '1'; }, 50);
+            goBtn.style.opacity = '1';
+            goBtn.style.pointerEvents = 'auto';
+          }
+        }, 1000);
       });
     });
   };
@@ -567,9 +595,9 @@
     document.getElementById('card5').style.animation = 'cardBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
 
     // Typewriter for card5
-    typeText(document.getElementById('c5Title'), 'You guessed it right!', 62, function() {
-      typeText(document.getElementById('c5Line1'), "I know you're obsessed with these puzzles, and I know finishing them always leaves you wanting more.", 32, function() {
-        typeText(document.getElementById('c5Line2'), 'So I made you your very own puzzle game with unlimited levels! Happy solving!', 32, function() {
+    typeWords(document.getElementById('c5Title'), 'You guessed it right!', 120, function() {
+      typeWords(document.getElementById('c5Line1'), "I know you're obsessed with these puzzles, and I know finishing them always leaves you wanting more.", 60, function() {
+        typeWords(document.getElementById('c5Line2'), 'So I made you your very own puzzle game with unlimited levels! Happy solving!', 60, function() {
           document.getElementById('c5Hearts').style.visibility = 'visible';
           document.getElementById('c5Pick').style.visibility = 'visible';
           document.getElementById('c5Btns').style.visibility = 'visible';
