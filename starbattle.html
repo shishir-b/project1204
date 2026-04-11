@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Star Battle</title>
+  <style>
+    :root {
+      --cell-size: 50px;
+      --primary: #1a237e;
+      --primary-light: #283593;
+      --error: #d32f2f;
+      --success: #2e7d32;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      display: flex; justify-content: center; padding: 16px;
+      min-height: 100vh; color: #222; transition: background 0.5s;
+    }
+
+    body.party {
+      background: linear-gradient(135deg, #1a0011 0%, #2d0a1e 25%, #4a1942 50%, #1a0a2e 75%, #0d0015 100%);
+      background-attachment: fixed; color: #eee;
+    }
+    body.party header h1 { color: #ffd6e8; }
+    body.party header .subtitle { color: #d4b8e8; }
+    body.party .control-group label { color: #ccc; }
+    body.party .control-group select { background: #2a1545; color: #eee; border-color: #5a3d7a; }
+    body.party .btn { background: #7b1fa2; }
+    body.party .btn:hover { background: #9c27b0; }
+    body.party #timer { color: #ffd6e8; }
+    body.party details { background: #2a1545; color: #d4b8e8; }
+    body.party details summary { color: #ffd6e8; }
+    body.party .check-section { background: #2a1545; color: #d4b8e8; }
+    body.party .check-section summary { color: #ffd6e8; }
+
+    .theme-toggle {
+      position: fixed; top: 12px; right: 12px; z-index: 50;
+      padding: 8px 14px; border: 2px solid #ccc; border-radius: 20px;
+      background: white; cursor: pointer; font-size: 1.1em; transition: all 0.3s;
+    }
+    body.party .theme-toggle { background: #7b1fa2; border-color: #9c27b0; }
+
+    .party-balloons { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; display: none; }
+    body.party .party-balloons { display: block; }
+    .pbloon {
+      position: absolute; bottom: -150px; width: var(--bw); height: calc(var(--bw) * 1.2);
+      background: var(--bc); border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+      animation: pFloat var(--bd) ease-in infinite; animation-delay: var(--dd); opacity: 0;
+    }
+    .pbloon::after { content: ''; position: absolute; bottom: -60px; left: 50%; width: 1px; height: 60px; background: rgba(255,255,255,0.2); transform: translateX(-50%); }
+    @keyframes pFloat { 0% { transform: translateY(0); opacity: 0; } 8% { opacity: 0.7; } 100% { transform: translateY(-120vh); opacity: 0; } }
+
+    .container { max-width: 680px; width: 100%; }
+    header { text-align: center; margin-bottom: 14px; }
+    header h1 { font-size: 2em; color: var(--primary); letter-spacing: 2px; }
+    header .subtitle { color: #888; font-size: 0.85em; margin-top: 2px; }
+
+    .controls { display: flex; gap: 10px; justify-content: center; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap; }
+    .control-group { display: flex; flex-direction: column; gap: 3px; }
+    .control-group label { font-size: 0.75em; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .control-group select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; }
+
+    .btn { padding: 8px 18px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600; transition: background 0.15s; }
+    .btn:hover { background: var(--primary-light); }
+
+    .game-info { display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+    #timer { font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.3em; color: #333; }
+
+    .btn-pause { padding: 6px 14px; background: #ff8f00; color: white; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600; }
+    .btn-pause:hover { background: #ff6f00; }
+    .btn-pause.paused { background: #43a047; }
+
+    #gridContainer { display: flex; justify-content: center; margin-bottom: 12px; }
+    #gridContainer.paused { filter: blur(12px); pointer-events: none; }
+
+    /* Star Battle Grid */
+    .sb-grid {
+      display: inline-grid; gap: 0; border: 3px solid #333; border-radius: 4px;
+      background: #fff; user-select: none;
+    }
+
+    .sb-cell {
+      width: var(--cell-size); height: var(--cell-size);
+      display: flex; align-items: center; justify-content: center;
+      font-size: calc(var(--cell-size) * 0.45); font-weight: 700;
+      cursor: pointer; border: 1px solid #bbb; position: relative;
+      transition: background 0.1s;
+    }
+
+    .sb-cell.region-border-top    { border-top: 3px solid #333; }
+    .sb-cell.region-border-bottom { border-bottom: 3px solid #333; }
+    .sb-cell.region-border-left   { border-left: 3px solid #333; }
+    .sb-cell.region-border-right  { border-right: 3px solid #333; }
+
+    .sb-cell .cell-content { pointer-events: none; z-index: 1; position: relative; }
+    .sb-cell .star { color: #ffd700; font-size: calc(var(--cell-size) * 0.55); text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .sb-cell .cross { color: #bbb; font-size: calc(var(--cell-size) * 0.24); }
+
+    .sb-cell .star.pop {
+      animation: starPop 0.35s ease-out;
+    }
+
+    @keyframes starPop {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .sb-cell .cross.auto { color: #ccc; }
+
+    body.party .sb-cell { border-color: #5a3d7a; }
+    body.party .sb-cell .cross { color: #5a4a6a; }
+    body.party .sb-cell .cross.auto { color: #4a3a5a; }
+
+    /* Error: red flashing on star cells */
+    .sb-cell.error {
+      animation: errorFlash 0.8s ease-in-out infinite;
+    }
+
+    @keyframes errorFlash {
+      0%, 100% { background-color: #ef9a9a; }
+      50% { background-color: #e53935; }
+    }
+
+    body.party .sb-cell.error {
+      animation: errorFlashDark 0.8s ease-in-out infinite;
+    }
+
+    @keyframes errorFlashDark {
+      0%, 100% { background-color: #4a1525; }
+      50% { background-color: #b71c1c; }
+    }
+
+    .sb-cell.reveal-ok { background: rgba(46,125,50,0.25) !important; }
+    .sb-cell.reveal-bad { background: rgba(211,47,47,0.25) !important; }
+
+    .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+
+    .check-section { background: white; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 10px; }
+    .check-section summary { cursor: pointer; font-weight: 600; color: var(--primary); }
+    .check-inner { margin-top: 10px; text-align: center; }
+    .check-btn { padding: 8px 22px; background: #546e7a; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 600; }
+    .check-btn:hover { background: #455a64; }
+    #checkResult { margin-top: 10px; padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 0.95em; display: none; }
+    #checkResult.correct { display: block; background: #e8f5e9; color: #2e7d32; }
+    #checkResult.wrong   { display: block; background: #fce4ec; color: #c62828; }
+    #checkResult.empty   { display: block; background: #fff3e0; color: #e65100; }
+
+    #winOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    #winOverlay.hidden { display: none; }
+    .win-content { background: white; padding: 44px 48px; border-radius: 18px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .win-content h2 { color: var(--success); margin-bottom: 10px; font-size: 1.8em; }
+    .win-content p { margin-bottom: 22px; color: #555; }
+    .win-content .btn { background: var(--success); padding: 10px 30px; }
+
+    details { background: white; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    details summary { cursor: pointer; font-weight: 600; color: var(--primary); }
+    .help { margin-top: 10px; color: #555; line-height: 1.7; font-size: 0.92em; }
+    .help p { margin-bottom: 5px; }
+    .help ul { margin: 6px 0 6px 18px; }
+
+    @media (max-width: 520px) {
+      body { padding: 8px; }
+      header h1 { font-size: 1.5em; }
+      .controls { gap: 6px; }
+      .actions .btn { padding: 6px 12px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle">&#127880;</button>
+<div class="party-balloons" id="partyBalloons"></div>
+<div class="container">
+  <header>
+    <h1>&#11088; Star Battle</h1>
+    <p class="subtitle">Logic Puzzle Game</p>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="size">Grid</label>
+      <select id="size">
+        <option value="5">5 &times; 5</option>
+        <option value="6" selected>6 &times; 6</option>
+        <option value="8">8 &times; 8</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+    <button class="btn" id="newGameBtn">New Game</button>
+    <button class="btn" id="restartBtn" style="background:#546e7a">Restart</button>
+  </div>
+
+  <div class="game-info">
+    <span id="timer">00:00</span>
+    <button class="btn-pause" id="pauseBtn">&#10074;&#10074; Pause</button>
+  </div>
+
+  <div id="gridContainer"></div>
+
+  <div class="actions">
+    <button class="btn" id="hintBtn" style="background:#7b1fa2">&#128161; Hint</button>
+    <button class="btn" id="revealBtn" style="background:#0277bd">&#128065; Reveal</button>
+    <button class="btn" id="clearBtn" style="background:#546e7a">&#128465; Clear All</button>
+    <button class="btn" id="undoBtn" style="background:#455a64">&#8617; Undo</button>
+    <button class="btn" id="redoBtn" style="background:#455a64">&#8618; Redo</button>
+  </div>
+
+  <div id="winOverlay" class="hidden">
+    <div class="win-content">
+      <h2>&#11088; Congratulations!</h2>
+      <p>Solved in <span id="winTime"></span></p>
+      <button class="btn" onclick="newGame()">Play Again</button>
+    </div>
+  </div>
+
+  <details class="check-section">
+    <summary>Check Progress</summary>
+    <div class="check-inner">
+      <button class="check-btn" id="checkBtn">Am I correct so far?</button>
+      <div id="checkResult"></div>
+    </div>
+  </details>
+
+  <details style="margin-top:8px;">
+    <summary>How to Play</summary>
+    <div class="help">
+      <p><strong>Goal:</strong> Place exactly <strong>1 star &#11088;</strong> in each row, each column, and each colored region.</p>
+      <ul>
+        <li>Stars cannot be <strong>adjacent</strong> to each other &mdash; not even diagonally.</li>
+        <li><strong>Click once</strong> = &#10060; mark (star can't go here).</li>
+        <li><strong>Click again</strong> = &#11088; place a star.</li>
+        <li><strong>Click again</strong> = clear the cell.</li>
+      </ul>
+      <p>Red highlights show rule violations in real-time.</p>
+    </div>
+  </details>
+</div>
+
+<script>
+// ======================== STATE ========================
+var S = {
+  size: 6,
+  grid: [],       // 0=empty, 1=cross, 2=star
+  solution: [],   // 0 or 2(star)
+  regions: [],    // region ID per cell
+  regionCount: 0,
+  timer: 0, timerInterval: null,
+  isPaused: false, isComplete: false,
+  history: [], redoStack: [],
+};
+
+// ======================== REGION GENERATION ========================
+function generateRegions(n) {
+  // Simple reliable approach: fill grid row by row, assigning to regions
+  // Each region gets exactly n cells, all contiguous
+  var regions = [];
+  for (var r = 0; r < n; r++) { regions.push([]); for (var c = 0; c < n; c++) regions[r].push(-1); }
+
+  var regionCells = []; // regionCells[id] = [[r,c],...]
+  for (var i = 0; i < n; i++) regionCells.push([]);
+
+  // Attempt to generate valid regions using BFS growth
+  for (var attempt = 0; attempt < 30; attempt++) {
+    // Reset
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) regions[r][c] = -1;
+    for (var i = 0; i < n; i++) regionCells[i] = [];
+
+    // Pick n seed cells spread across the grid
+    var seeds = [];
+    var allCells = [];
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) allCells.push([r,c]);
+    shuffleArr(allCells);
+
+    // Pick seeds that are at least 2 apart
+    for (var i = 0; i < allCells.length && seeds.length < n; i++) {
+      var ok = true;
+      for (var j = 0; j < seeds.length; j++) {
+        if (Math.abs(allCells[i][0] - seeds[j][0]) + Math.abs(allCells[i][1] - seeds[j][1]) < 2) { ok = false; break; }
+      }
+      if (ok) seeds.push(allCells[i]);
+    }
+    if (seeds.length < n) continue;
+
+    for (var i = 0; i < n; i++) {
+      regions[seeds[i][0]][seeds[i][1]] = i;
+      regionCells[i].push(seeds[i]);
+    }
+
+    // Grow regions in round-robin until all cells assigned
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (var id = 0; id < n; id++) {
+        if (regionCells[id].length >= n) continue;
+        // Find unassigned neighbor of this region
+        var found = false;
+        var frontier = regionCells[id].slice();
+        shuffleArr(frontier);
+        for (var fi = 0; fi < frontier.length && !found; fi++) {
+          var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+          shuffleArr(dirs);
+          for (var d = 0; d < dirs.length; d++) {
+            var nr = frontier[fi][0] + dirs[d][0], nc = frontier[fi][1] + dirs[d][1];
+            if (nr >= 0 && nr < n && nc >= 0 && nc < n && regions[nr][nc] === -1) {
+              regions[nr][nc] = id;
+              regionCells[id].push([nr, nc]);
+              changed = true;
+              found = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Check all cells assigned
+    var allAssigned = true;
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      if (regions[r][c] === -1) {
+        // Assign to nearest region that has room
+        var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        for (var d = 0; d < dirs.length; d++) {
+          var nr = r + dirs[d][0], nc = c + dirs[d][1];
+          if (nr >= 0 && nr < n && nc >= 0 && nc < n && regions[nr][nc] !== -1) {
+            regions[r][c] = regions[nr][nc];
+            regionCells[regions[nr][nc]].push([r,c]);
+            break;
+          }
+        }
+        if (regions[r][c] === -1) allAssigned = false;
+      }
+    }
+    if (allAssigned) break;
+  }
+
+  return { regions: regions, count: n };
+}
+
+// ======================== SOLUTION GENERATION ========================
+function generateSolution(n, regions) {
+  // Place exactly 1 star per row, col, and region
+  // Stars can't be adjacent (including diagonal)
+  var grid = [];
+  for (var r = 0; r < n; r++) { grid.push([]); for (var c = 0; c < n; c++) grid[r].push(0); }
+
+  var usedCols = {};
+  var usedRegions = {};
+
+  function isAdj(grid, r, c, n) {
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      var nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < n && nc >= 0 && nc < n && grid[nr][nc] === 2) return true;
+    }
+    return false;
+  }
+
+  function solve(row) {
+    if (row === n) return true;
+    var cols = [];
+    for (var c = 0; c < n; c++) cols.push(c);
+    shuffleArr(cols);
+    for (var ci = 0; ci < cols.length; ci++) {
+      var c = cols[ci];
+      if (usedCols[c]) continue;
+      var reg = regions[row][c];
+      if (usedRegions[reg]) continue;
+      if (isAdj(grid, row, c, n)) continue;
+      grid[row][c] = 2;
+      usedCols[c] = true;
+      usedRegions[reg] = true;
+      if (solve(row + 1)) return true;
+      grid[row][c] = 0;
+      usedCols[c] = false;
+      usedRegions[reg] = false;
+    }
+    return false;
+  }
+
+  solve(0);
+  return grid;
+}
+
+// Check if puzzle has exactly 1 solution
+function countSolutions(n, regions, maxCount) {
+  var grid = [];
+  for (var r = 0; r < n; r++) { grid.push([]); for (var c = 0; c < n; c++) grid[r].push(0); }
+  var usedCols = {};
+  var usedRegions = {};
+  var count = 0;
+
+  function isAdj(r, c) {
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      var nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < n && nc >= 0 && nc < n && grid[nr][nc] === 2) return true;
+    }
+    return false;
+  }
+
+  function solve(row) {
+    if (count >= maxCount) return;
+    if (row === n) { count++; return; }
+    for (var c = 0; c < n; c++) {
+      if (usedCols[c]) continue;
+      var reg = regions[row][c];
+      if (usedRegions[reg]) continue;
+      if (isAdj(row, c)) continue;
+      grid[row][c] = 2;
+      usedCols[c] = true;
+      usedRegions[reg] = true;
+      solve(row + 1);
+      grid[row][c] = 0;
+      usedCols[c] = false;
+      usedRegions[reg] = false;
+    }
+  }
+
+  solve(0);
+  return count;
+}
+
+// ======================== REGION COLORS ========================
+function getRegionColors(count) {
+  var colors = [];
+  for (var i = 0; i < count; i++) {
+    var hue = (i * 137.508) % 360;
+    colors.push('hsl(' + hue + ', 40%, 88%)');
+  }
+  return colors;
+}
+
+function getRegionColorsDark(count) {
+  var colors = [];
+  for (var i = 0; i < count; i++) {
+    var hue = (i * 137.508) % 360;
+    colors.push('hsl(' + hue + ', 30%, 25%)');
+  }
+  return colors;
+}
+
+// ======================== ERROR CHECKING ========================
+function getErrors() {
+  var errors = {};
+  var n = S.size;
+
+  // Find all stars
+  var stars = [];
+  var rowStars = {}, colStars = {}, regStars = {};
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+    if (S.grid[r][c] === 2) {
+      stars.push([r,c]);
+      if (!rowStars[r]) rowStars[r] = [];
+      rowStars[r].push(c);
+      if (!colStars[c]) colStars[c] = [];
+      colStars[c].push(r);
+      var reg = S.regions[r][c];
+      if (!regStars[reg]) regStars[reg] = [];
+      regStars[reg].push([r,c]);
+    }
+  }
+
+  // Row: >1 star
+  for (var r in rowStars) {
+    if (rowStars[r].length > 1) {
+      for (var i = 0; i < rowStars[r].length; i++) errors[r + ',' + rowStars[r][i]] = true;
+    }
+  }
+  // Col: >1 star
+  for (var c in colStars) {
+    if (colStars[c].length > 1) {
+      for (var i = 0; i < colStars[c].length; i++) errors[colStars[c][i] + ',' + c] = true;
+    }
+  }
+  // Region: >1 star
+  for (var reg in regStars) {
+    if (regStars[reg].length > 1) {
+      for (var i = 0; i < regStars[reg].length; i++) errors[regStars[reg][i][0] + ',' + regStars[reg][i][1]] = true;
+    }
+  }
+  // Adjacent stars
+  for (var i = 0; i < stars.length; i++) {
+    var r = stars[i][0], c = stars[i][1];
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      var nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < n && nc >= 0 && nc < n && S.grid[nr][nc] === 2) {
+        errors[r + ',' + c] = true;
+        errors[nr + ',' + nc] = true;
+      }
+    }
+  }
+  return errors;
+}
+
+// ======================== RENDERING ========================
+function getCellSize() {
+  var maxW = Math.min(550, window.innerWidth - 28);
+  return Math.min(Math.floor(maxW / S.size), 60);
+}
+
+function renderGrid() {
+  var container = document.getElementById('gridContainer');
+  container.innerHTML = '';
+  var cellSize = getCellSize();
+  document.documentElement.style.setProperty('--cell-size', cellSize + 'px');
+
+  var grid = document.createElement('div');
+  grid.className = 'sb-grid';
+  grid.style.gridTemplateColumns = 'repeat(' + S.size + ', var(--cell-size))';
+
+  var colors = document.body.classList.contains('party') ? getRegionColorsDark(S.regionCount) : getRegionColors(S.regionCount);
+
+  for (var r = 0; r < S.size; r++) {
+    for (var c = 0; c < S.size; c++) {
+      var cell = document.createElement('div');
+      cell.className = 'sb-cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.style.backgroundColor = colors[S.regions[r][c]];
+
+      // Region borders
+      var rid = S.regions[r][c];
+      if (r === 0 || S.regions[r-1][c] !== rid) cell.classList.add('region-border-top');
+      if (r === S.size-1 || S.regions[r+1][c] !== rid) cell.classList.add('region-border-bottom');
+      if (c === 0 || S.regions[r][c-1] !== rid) cell.classList.add('region-border-left');
+      if (c === S.size-1 || S.regions[r][c+1] !== rid) cell.classList.add('region-border-right');
+
+      var content = document.createElement('span');
+      content.className = 'cell-content';
+      if (S.grid[r][c] === 1) { content.className += ' cross'; content.textContent = '✕'; }
+      else if (S.grid[r][c] === 2) { content.className += ' star'; content.textContent = '⭐'; }
+      cell.appendChild(content);
+
+      (function(rr,cc) {
+        cell.addEventListener('mousedown', function(e) { e.preventDefault(); startDrag(rr,cc); });
+        cell.addEventListener('mouseover', function() { dragOver(rr,cc); });
+        cell.addEventListener('touchstart', function(e) { e.preventDefault(); startDrag(rr,cc); }, {passive:false});
+        cell.addEventListener('touchmove', function(e) {
+          var t = e.touches[0];
+          var el = document.elementFromPoint(t.clientX, t.clientY);
+          if (el && el.dataset && el.dataset.r !== undefined) dragOver(parseInt(el.dataset.r), parseInt(el.dataset.c));
+        }, {passive:false});
+      })(r,c);
+      grid.appendChild(cell);
+    }
+  }
+  container.appendChild(grid);
+  updateErrors();
+}
+
+function updateErrors() {
+  var errors = getErrors();
+  // Remove old errors
+  document.querySelectorAll('.sb-cell').forEach(function(c) { c.classList.remove('error'); });
+
+  // Apply flashing error on ALL violating star cells (row, col, region, adjacent)
+  for (var key in errors) {
+    var p = key.split(',');
+    var cell = document.querySelector('.sb-cell[data-r="'+p[0]+'"][data-c="'+p[1]+'"]');
+    if (cell && S.grid[parseInt(p[0])][parseInt(p[1])] === 2) cell.classList.add('error');
+  }
+}
+
+// ======================== INPUT ========================
+var errorTimeout = null;
+var isDragging = false;
+var dragBatch = [];
+var dragStartCell = null;
+var didDrag = false;
+
+function startDrag(r, c) {
+  if (S.isComplete || S.isPaused) return;
+  isDragging = true;
+  didDrag = false;
+  dragStartCell = [r, c];
+  dragBatch = [];
+}
+
+function dragOver(r, c) {
+  if (!isDragging || S.isComplete || S.isPaused) return;
+
+  // Mark first cell too when drag begins to move
+  if (!didDrag && dragStartCell) {
+    didDrag = true;
+    // Mark the starting cell
+    var sr = dragStartCell[0], sc = dragStartCell[1];
+    if (S.grid[sr][sc] === 0) {
+      dragBatch.push({ r: sr, c: sc, prev: 0 });
+      S.grid[sr][sc] = 1;
+      var startCell = document.querySelector('.sb-cell[data-r="'+sr+'"][data-c="'+sc+'"]');
+      if (startCell) {
+        var sct = startCell.querySelector('.cell-content');
+        sct.className = 'cell-content cross';
+        sct.textContent = '✕';
+      }
+    }
+  }
+
+  // Only mark empty cells as cross during drag
+  if (S.grid[r][c] === 0) {
+    dragBatch.push({ r: r, c: c, prev: 0 });
+    S.grid[r][c] = 1;
+    var cell = document.querySelector('.sb-cell[data-r="'+r+'"][data-c="'+c+'"]');
+    if (cell) {
+      var ct = cell.querySelector('.cell-content');
+      ct.className = 'cell-content cross';
+      ct.textContent = '✕';
+    }
+  }
+}
+
+document.addEventListener('mouseup', function() {
+  if (isDragging) {
+    if (didDrag && dragBatch.length > 0) {
+      S.history.push(dragBatch);
+      S.redoStack = [];
+    } else if (!didDrag && dragStartCell) {
+      // Single click — cycle the cell
+      cellClick(dragStartCell[0], dragStartCell[1]);
+    }
+    isDragging = false;
+    dragBatch = [];
+    dragStartCell = null;
+  }
+});
+
+document.addEventListener('touchend', function() {
+  if (isDragging) {
+    if (didDrag && dragBatch.length > 0) {
+      S.history.push(dragBatch);
+      S.redoStack = [];
+    } else if (!didDrag && dragStartCell) {
+      cellClick(dragStartCell[0], dragStartCell[1]);
+    }
+    isDragging = false;
+    dragBatch = [];
+    dragStartCell = null;
+  }
+});
+
+function cellClick(r, c) {
+  if (S.isComplete || S.isPaused) return;
+  var prev = S.grid[r][c];
+  S.grid[r][c] = (S.grid[r][c] + 1) % 3;
+
+  // Save undo state for this cell + any auto-crosses
+  var undoBatch = [{ r: r, c: c, prev: prev }];
+
+  var cell = document.querySelector('.sb-cell[data-r="'+r+'"][data-c="'+c+'"]');
+  if (cell) {
+    var content = cell.querySelector('.cell-content');
+    content.className = 'cell-content';
+    if (S.grid[r][c] === 1) { content.className += ' cross'; content.textContent = '✕'; }
+    else if (S.grid[r][c] === 2) {
+      content.className += ' star pop';
+      content.textContent = '⭐';
+
+      // Auto-mark adjacent 8 cells + rest of row + rest of col + rest of region with crosses
+      var n = S.size;
+      var reg = S.regions[r][c];
+      var toMark = [];
+
+      // Adjacent 8
+      for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < n && nc >= 0 && nc < n) toMark.push([nr, nc]);
+      }
+      // Rest of row
+      for (var cc = 0; cc < n; cc++) if (cc !== c) toMark.push([r, cc]);
+      // Rest of col
+      for (var rr = 0; rr < n; rr++) if (rr !== r) toMark.push([rr, c]);
+      // Rest of region
+      for (var rr = 0; rr < n; rr++) for (var cc = 0; cc < n; cc++) {
+        if (S.regions[rr][cc] === reg && !(rr === r && cc === c)) toMark.push([rr, cc]);
+      }
+
+      // Mark empty cells as cross
+      for (var i = 0; i < toMark.length; i++) {
+        var mr = toMark[i][0], mc = toMark[i][1];
+        if (S.grid[mr][mc] === 0) {
+          undoBatch.push({ r: mr, c: mc, prev: 0 });
+          S.grid[mr][mc] = 1;
+          var mc2 = document.querySelector('.sb-cell[data-r="'+mr+'"][data-c="'+mc+'"]');
+          if (mc2) {
+            var ct = mc2.querySelector('.cell-content');
+            ct.className = 'cell-content cross auto';
+            ct.textContent = '✕';
+          }
+        }
+      }
+    }
+    else { content.textContent = ''; }
+  }
+
+  S.history.push(undoBatch);
+  S.redoStack = [];
+
+  document.querySelectorAll('.sb-cell.error').forEach(function(c) { c.classList.remove('error'); });
+  clearTimeout(errorTimeout);
+  errorTimeout = setTimeout(function() {
+    updateErrors();
+    if (checkWin()) handleWin();
+  }, 600);
+}
+
+function doUndo() {
+  if (S.history.length === 0 || S.isComplete) return;
+  var batch = S.history.pop();
+  var redoBatch = [];
+  for (var i = batch.length - 1; i >= 0; i--) {
+    var move = batch[i];
+    redoBatch.push({ r: move.r, c: move.c, prev: S.grid[move.r][move.c] });
+    S.grid[move.r][move.c] = move.prev;
+  }
+  S.redoStack.push(redoBatch);
+  renderGrid();
+}
+
+function doRedo() {
+  if (S.redoStack.length === 0 || S.isComplete) return;
+  var batch = S.redoStack.pop();
+  var undoBatch = [];
+  for (var i = batch.length - 1; i >= 0; i--) {
+    var move = batch[i];
+    undoBatch.push({ r: move.r, c: move.c, prev: S.grid[move.r][move.c] });
+    S.grid[move.r][move.c] = move.prev;
+  }
+  S.history.push(undoBatch);
+  renderGrid();
+}
+
+function checkWin() {
+  var n = S.size;
+  var starCount = 0;
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (S.grid[r][c] === 2) starCount++;
+  if (starCount !== n) return false;
+  var errors = getErrors();
+  for (var k in errors) return false;
+  return true;
+}
+
+// ======================== TIMER ========================
+function startTimer() {
+  S.timer = 0; clearInterval(S.timerInterval); updateTimerDisplay();
+  S.timerInterval = setInterval(function() { S.timer++; updateTimerDisplay(); }, 1000);
+}
+function updateTimerDisplay() {
+  var m = String(Math.floor(S.timer/60)).padStart(2,'0');
+  var s = String(S.timer%60).padStart(2,'0');
+  document.getElementById('timer').textContent = m+':'+s;
+}
+
+// ======================== PAUSE ========================
+function togglePause() {
+  if (S.isComplete) return;
+  S.isPaused = !S.isPaused;
+  var btn = document.getElementById('pauseBtn');
+  document.getElementById('gridContainer').classList.toggle('paused', S.isPaused);
+  if (S.isPaused) { clearInterval(S.timerInterval); btn.innerHTML = '&#9654; Resume'; btn.classList.add('paused'); }
+  else { S.timerInterval = setInterval(function() { S.timer++; updateTimerDisplay(); }, 1000); btn.innerHTML = '&#10074;&#10074; Pause'; btn.classList.remove('paused'); }
+}
+
+// ======================== WIN ========================
+function handleWin() {
+  S.isComplete = true; clearInterval(S.timerInterval);
+  var t = (S.timer >= 60 ? Math.floor(S.timer/60) + 'm ' : '') + (S.timer%60) + 's';
+  document.getElementById('winTime').textContent = t;
+  document.getElementById('winOverlay').classList.remove('hidden');
+}
+
+// ======================== HINT ========================
+function giveHint() {
+  if (S.isComplete || S.isPaused) return;
+  var candidates = [];
+  for (var r = 0; r < S.size; r++) for (var c = 0; c < S.size; c++) {
+    if (S.solution[r][c] === 2 && S.grid[r][c] !== 2) candidates.push([r,c]);
+  }
+  if (candidates.length === 0) return;
+  var pick = candidates[Math.floor(Math.random() * candidates.length)];
+  S.grid[pick[0]][pick[1]] = 2;
+  S.history.push({ r: pick[0], c: pick[1], prev: S.grid[pick[0]][pick[1]] });
+  renderGrid();
+  var cell = document.querySelector('.sb-cell[data-r="'+pick[0]+'"][data-c="'+pick[1]+'"]');
+  if (cell) { cell.style.backgroundColor = 'rgba(123,31,162,0.35)'; setTimeout(function() { cell.style.backgroundColor = ''; renderGrid(); }, 1200); }
+  if (checkWin()) handleWin();
+}
+
+// ======================== REVEAL ========================
+function toggleReveal() {
+  if (S.isComplete || S.isPaused) return;
+  for (var r = 0; r < S.size; r++) for (var c = 0; c < S.size; c++) {
+    if (S.grid[r][c] === 0) continue;
+    var cell = document.querySelector('.sb-cell[data-r="'+r+'"][data-c="'+c+'"]');
+    if (!cell) continue;
+    var correct = (S.grid[r][c] === 2 && S.solution[r][c] === 2) || (S.grid[r][c] === 1 && S.solution[r][c] !== 2);
+    cell.classList.add(correct ? 'reveal-ok' : 'reveal-bad');
+  }
+  setTimeout(function() {
+    document.querySelectorAll('.reveal-ok,.reveal-bad').forEach(function(c) { c.classList.remove('reveal-ok','reveal-bad'); });
+  }, 2000);
+}
+
+// ======================== CHECK PROGRESS ========================
+function checkProgress() {
+  var el = document.getElementById('checkResult');
+  el.className = '';
+  var filled = 0, wrong = false;
+  for (var r = 0; r < S.size; r++) for (var c = 0; c < S.size; c++) {
+    if (S.grid[r][c] === 2) {
+      filled++;
+      if (S.solution[r][c] !== 2) wrong = true;
+    }
+  }
+  if (filled === 0) { el.textContent = "You haven't placed any stars yet."; el.className = 'empty'; }
+  else if (wrong) { el.textContent = "There's a mistake somewhere. Keep checking!"; el.className = 'wrong'; }
+  else { el.textContent = "All correct so far! Keep going!"; el.className = 'correct'; }
+}
+
+// ======================== CLEAR ALL ========================
+function clearAll() {
+  if (S.isComplete) return;
+  for (var r = 0; r < S.size; r++) for (var c = 0; c < S.size; c++) S.grid[r][c] = 0;
+  S.history = []; S.redoStack = [];
+  renderGrid(); startTimer();
+}
+
+// ======================== UTILITIES ========================
+function shuffleArr(a) { for (var i = a.length-1; i > 0; i--) { var j = Math.floor(Math.random()*(i+1)); var t = a[i]; a[i] = a[j]; a[j] = t; } }
+
+// ======================== NEW GAME ========================
+function newGame() {
+  var n = parseInt(document.getElementById('size').value);
+  S.size = n;
+  S.isComplete = false; S.isPaused = false;
+  S.history = []; S.redoStack = [];
+  document.getElementById('winOverlay').classList.add('hidden');
+
+  // Generate regions and solution (retry until valid + unique solution)
+  var attempts = 0;
+  while (attempts < 100) {
+    attempts++;
+    var reg = generateRegions(n);
+    S.regions = reg.regions;
+    S.regionCount = reg.count;
+    S.solution = generateSolution(n, S.regions);
+    // Check solution has n stars
+    var sc = 0;
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (S.solution[r][c] === 2) sc++;
+    if (sc !== n) continue;
+    // Check unique solution (stop counting at 2)
+    var sols = countSolutions(n, S.regions, 2);
+    if (sols === 1) break;
+  }
+
+  S.grid = [];
+  for (var r = 0; r < n; r++) { S.grid.push([]); for (var c = 0; c < n; c++) S.grid[r].push(0); }
+
+  // All difficulties start with empty grid
+  // Difficulty affects grid size: easy=5, medium=6, hard=8
+
+  renderGrid();
+  startTimer();
+}
+
+// ======================== INIT ========================
+document.getElementById('newGameBtn').addEventListener('click', newGame);
+document.getElementById('restartBtn').addEventListener('click', clearAll);
+document.getElementById('pauseBtn').addEventListener('click', togglePause);
+document.getElementById('hintBtn').addEventListener('click', giveHint);
+document.getElementById('revealBtn').addEventListener('click', toggleReveal);
+document.getElementById('clearBtn').addEventListener('click', clearAll);
+document.getElementById('checkBtn').addEventListener('click', checkProgress);
+document.getElementById('undoBtn').addEventListener('click', doUndo);
+document.getElementById('redoBtn').addEventListener('click', doRedo);
+
+window.addEventListener('resize', function() {
+  document.documentElement.style.setProperty('--cell-size', getCellSize() + 'px');
+});
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); doUndo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); doRedo(); }
+});
+
+// Party balloons
+var partyBalloons = document.getElementById('partyBalloons');
+var bColors = ['rgba(255,105,180,0.6)','rgba(196,77,255,0.6)','rgba(255,20,147,0.5)','rgba(255,182,213,0.6)','rgba(180,50,200,0.5)'];
+function spawnPB() {
+  var b = document.createElement('div'); b.className = 'pbloon';
+  b.style.left = (5+Math.random()*90)+'%';
+  b.style.setProperty('--bw',(30+Math.random()*25)+'px');
+  b.style.setProperty('--bc',bColors[Math.floor(Math.random()*bColors.length)]);
+  b.style.setProperty('--bd',(10+Math.random()*10)+'s');
+  b.style.setProperty('--dd','0s');
+  partyBalloons.appendChild(b);
+  setTimeout(function(){b.remove();},22000);
+}
+var pInt = null;
+// Light mode by default — no balloons on start
+
+document.getElementById('themeToggle').onclick = function() {
+  document.body.classList.toggle('party');
+  if (document.body.classList.contains('party')) { for (var i=0;i<6;i++) spawnPB(); pInt = setInterval(spawnPB,3000); }
+  else { clearInterval(pInt); partyBalloons.innerHTML = ''; }
+  renderGrid();
+};
+
+newGame();
+</script>
+</body>
+</html>

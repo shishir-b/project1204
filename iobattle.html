@@ -446,6 +446,8 @@
     <button class="btn" id="hintBtn" style="background:#7b1fa2">&#128161; Hint</button>
     <button class="btn" id="revealBtn" style="background:#0277bd">&#128065; Reveal</button>
     <button class="btn" id="clearBtn" style="background:#546e7a">&#128465; Clear All</button>
+    <button class="btn" id="undoBtn" style="background:#455a64">&#8617; Undo</button>
+    <button class="btn" id="redoBtn" style="background:#455a64">&#8618; Redo</button>
   </div>
 
   <div id="winOverlay" class="hidden">
@@ -493,6 +495,8 @@ var S = {
   timerInterval: null,
   isPaused: false,
   isComplete: false,
+  history: [],
+  redoStack: [],
 };
 
 // ======================== PUZZLE GENERATION ========================
@@ -889,8 +893,10 @@ function cellClick(r, c) {
   if (S.isComplete || S.isPaused) return;
   if (S.given[r][c]) return;
 
-  // Cycle: 0 -> 1(I) -> 2(O) -> 0
+  var prev = S.grid[r][c];
   S.grid[r][c] = (S.grid[r][c] + 1) % 3;
+  S.history.push({ r: r, c: c, prev: prev });
+  S.redoStack = [];
   updateCell(r, c);
 
   // Clear existing errors immediately while user is clicking
@@ -902,6 +908,24 @@ function cellClick(r, c) {
     updateErrors();
     if (checkWin()) handleWin();
   }, 500);
+}
+
+function doUndo() {
+  if (S.history.length === 0 || S.isComplete) return;
+  var move = S.history.pop();
+  S.redoStack.push({ r: move.r, c: move.c, prev: S.grid[move.r][move.c] });
+  S.grid[move.r][move.c] = move.prev;
+  updateCell(move.r, move.c);
+  updateErrors();
+}
+
+function doRedo() {
+  if (S.redoStack.length === 0 || S.isComplete) return;
+  var move = S.redoStack.pop();
+  S.history.push({ r: move.r, c: move.c, prev: S.grid[move.r][move.c] });
+  S.grid[move.r][move.c] = move.prev;
+  updateCell(move.r, move.c);
+  updateErrors();
 }
 
 function checkWin() {
@@ -1079,10 +1103,17 @@ document.getElementById('pauseBtn').addEventListener('click', togglePause);
 document.getElementById('hintBtn').addEventListener('click', giveHint);
 document.getElementById('revealBtn').addEventListener('click', toggleReveal);
 document.getElementById('clearBtn').addEventListener('click', clearAll);
+document.getElementById('undoBtn').addEventListener('click', doUndo);
+document.getElementById('redoBtn').addEventListener('click', doRedo);
 document.getElementById('checkBtn').addEventListener('click', checkProgress);
 
 window.addEventListener('resize', function() {
   document.documentElement.style.setProperty('--cell-size', getCellSize() + 'px');
+});
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); doUndo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); doRedo(); }
 });
 
 // Party mode
